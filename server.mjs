@@ -1,12 +1,11 @@
 import http from 'node:http';
-import { readFile } from 'node:fs/promises';
 import { createPollGate, retryDelay } from './polling.mjs';
+import { serveStatic } from './http-assets.mjs';
 
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '0.0.0.0';
 const refreshMs = Math.max(60, Number(process.env.REFRESH_SECONDS) || 60) * 1000;
 const pollGate = createPollGate(refreshMs);
-const publicDir = new URL('./public/', import.meta.url);
 let snapshot = null;
 let names = {};
 let npcPrices = {};
@@ -75,47 +74,19 @@ async function refreshNames() {
   }
 }
 
-const assets = {
-  '/app-icon.png': ['app-icon.png', 'image/png'],
-  '/': ['index.html', 'text/html; charset=utf-8'],
-  '/style.css': ['style.css', 'text/css; charset=utf-8'],
-  '/theme.css': ['theme.css', 'text/css; charset=utf-8'],
-  '/app.mjs': ['app.mjs', 'text/javascript; charset=utf-8'],
-  '/market.mjs': ['market.mjs', 'text/javascript; charset=utf-8'],
-};
 const server = http.createServer(async (req, res) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Referrer-Policy', 'no-referrer');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
-  res.setHeader('Cache-Control', 'no-store');
-  if (!['GET', 'HEAD'].includes(req.method)) {
-    res.writeHead(405, { Allow: 'GET, HEAD' }); return res.end();
-  }
+  if (await serveStatic(req, res)) return;
   try {
-    const pathname = new URL(req.url, 'http://localhost').pathname;
-    let body;
-    let type = 'application/json; charset=utf-8';
-    let status = 200;
-    if (pathname === '/healthz') {
-      body = JSON.stringify({ status: 'ok' });
-    } else if (pathname === '/api/bazaar') {
-      await refresh();
-      const stale = !snapshot || Date.now() - snapshot.lastUpdated > Math.max(180000, refreshMs * 3);
-      status = snapshot ? 200 : 503;
-      body = JSON.stringify({ ...snapshot, names, npcPrices, itemsFetchedAt, itemsError,
-        stale, error: lastError, refreshSeconds: refreshMs / 1000, nextRefreshAt: pollGate.next });
-    } else if (Object.hasOwn(assets, pathname)) {
-      const [file, mime] = assets[pathname];
-      body = await readFile(new URL(file, publicDir));
-      type = mime;
-    } else {
-      status = 404; body = JSON.stringify({ error: 'Nicht gefunden' });
-    }
-    res.writeHead(status, { 'Content-Type': type });
+    await refresh();
+    const stale = !snapshot || Date.now() - snapshot.lastUpdated > Math.max(180000, refreshMs * 3);
+    const status = snapshot ? 200 : 503;
+    const body = JSON.stringify({ ...snapshot, names, npcPrices, itemsFetchedAt, itemsError,
+      stale, error: lastError, refreshSeconds: refreshMs / 1000, nextRefreshAt: pollGate.next });
+    res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(req.method === 'HEAD' ? undefined : body);
   } catch {
     res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Interner Serverfehler' }));
+    res.end(req.method === 'HEAD' ? undefined : JSON.stringify({ error: 'Interner Serverfehler' }));
   }
 });
 server.listen(port, host, () => {

@@ -14,5 +14,8 @@
 <button data-mode="all">Alle Fixtures</button><button data-mode="capacity">Kapazität</button><button data-mode="goals">Bazaar-Zielvergleich</button><button data-mode="npc">NPC-Kompaktvergleich</button><button data-mode="npclimit">NPC-Mehrpositionslimit</button>
 <h2>Alter der NPC-Itemdaten</h2><button data-age="0">Frische Itemdaten ·0h</button><button data-age="48">Veraltete Itemdaten ·48h</button>
 <p>Danach zur Anwendung wechseln und bei bereits geöffneten Ansichten „Daten aktualisieren“ klicken.</p></section>
+<section><h2>API-Zustand für Produktionsstart-Prüfung</h2>
+<button data-api="success">API-Erfolg</button><button data-api="unavailable">Initialer API-Fehler ·503</button><button data-api="snapshot-error">Aktualisierungsfehler mit Snapshot</button>
+<p>Für initial503 den Fehler aktivieren und die Anwendung neu öffnen. Sie muss trotz Fehler vollständig starten und Wiederholung anbieten. Danach Erfolg aktivieren und „Daten aktualisieren“ nutzen. Für Snapshotfehler zuerst einmal erfolgreich Daten laden, danach den Snapshotfehler aktivieren und erneut aktualisieren. Nur die API-Antwort ist simuliert; HTML und Assets laufen durch den produktiven Handler.</p></section>
 <section><h2>Aktueller Testzustand</h2><button id="inspect">Zustand neu anzeigen</button><pre id="state"></pre></section>
 </body></html>

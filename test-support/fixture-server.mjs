@@ -1,12 +1,11 @@
-// Offline UI fixture server: no imports from server.mjs and no outgoing requests.
+// Offline API fixtures with the actual production static dispatch; no upstream requests.
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
-import { resolve, sep, extname } from 'node:path';
+import { serveStatic } from '../http-assets.mjs';
 
-const root = fileURLToPath(new URL('../public/', import.meta.url));
 const port = Number(process.env.FIXTURE_PORT || 4183);
 let mode = 'all', itemsAge = 0;
+let apiMode = 'success', lastSnapshot = null;
 const product = (buy, sell, buyRate, sellRate = buyRate) => ({
   sell_summary: [{ pricePerUnit: buy - .1, amount: 1, orders: 3 }],
   buy_summary: [{ pricePerUnit: sell + .1, amount: 1, orders: 3 }],
@@ -24,7 +23,10 @@ const products = {
 const names = { TEST_ITEM: 'Test Kapazität', COMPACT: 'Kompakte Position', BUDGET: 'Budget Position', MASS: 'Massen Position', LIMIT_A: 'NPC Limit A', LIMIT_B: 'NPC Limit B' };
 const npcPrices = { TEST_ITEM: 120, COMPACT: 120, BUDGET: 12, MASS: 1.3, LIMIT_A: 12, LIMIT_B: 12 };
 const modes = { all: Object.keys(products), capacity: ['TEST_ITEM'], goals: ['COMPACT', 'BUDGET'], npc: ['COMPACT', 'MASS'], npclimit: ['LIMIT_A', 'LIMIT_B'] };
-const json = (res, value) => { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(value)); };
+const json = (req, res, value, status = 200) => {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+  res.end(req.method === 'HEAD' ? undefined : JSON.stringify(value));
+};
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://127.0.0.1:${port}`);
@@ -37,19 +39,26 @@ http.createServer(async (req, res) => {
   if (url.pathname === '/__fixture') {
     if (url.searchParams.has('mode') && modes[url.searchParams.get('mode')]) mode = url.searchParams.get('mode');
     if (url.searchParams.has('itemsAge')) itemsAge = Math.max(0, Number(url.searchParams.get('itemsAge')) || 0);
-    json(res, { mode, itemsAge }); return;
+    if (['success', 'unavailable', 'snapshot-error'].includes(url.searchParams.get('apiMode'))) apiMode = url.searchParams.get('apiMode');
+    if (url.searchParams.get('clearSnapshot') === 'true') lastSnapshot = null;
+    json(req, res, { mode, itemsAge, apiMode, hasSnapshot: Boolean(lastSnapshot) }); return;
   }
+  // Every application route (HTML, module graph, styles, icon, healthz,
+  // unknown paths and method handling) goes through production code.
+  if (await serveStatic(req, res)) return;
   if (url.pathname === '/api/bazaar') {
     const now = Date.now();
-    json(res, { products: Object.fromEntries(modes[mode].map(id => [id, products[id]])), names, npcPrices,
+    if (apiMode === 'unavailable' || (apiMode === 'snapshot-error' && !lastSnapshot)) {
+      json(req, res, { error: 'Offline-Test: Marktdaten vorübergehend nicht verfügbar',
+        stale: true, refreshSeconds: 60, nextRefreshAt: now + 60000 }, 503); return;
+    }
+    if (apiMode === 'snapshot-error') {
+      json(req, res, { ...lastSnapshot, error: 'Offline-Test: Aktualisierung fehlgeschlagen',
+        nextRefreshAt: now + 60000 }); return;
+    }
+    lastSnapshot = { products: Object.fromEntries(modes[mode].map(id => [id, products[id]])), names, npcPrices,
       lastUpdated: now, itemsFetchedAt: now - itemsAge * 3600000, fetchedAt: now,
-      refreshSeconds: 60, nextRefreshAt: now + 60000, fixture: true }); return;
+      refreshSeconds: 60, nextRefreshAt: now + 60000, fixture: true };
+    json(req, res, lastSnapshot); return;
   }
-  try {
-    const path = resolve(root, '.' + decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname));
-    if (!path.startsWith(resolve(root) + sep)) { res.writeHead(403); res.end(); return; }
-    const body = await readFile(path);
-    const type = { '.mjs': 'text/javascript', '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.png': 'image/png' }[extname(path)] || 'application/octet-stream';
-    res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' }); res.end(body);
-  } catch { res.writeHead(404); res.end('Not found'); }
 }).listen(port, '127.0.0.1', () => console.log(`Offline fixtures: http://127.0.0.1:${port} (mode=${mode})`));

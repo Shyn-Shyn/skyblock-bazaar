@@ -27,7 +27,7 @@ document.querySelector('#legacy').addEventListener('click', () => run(async () =
 document.querySelector('#defaults').addEventListener('click', () => run(async () => {
   localStorage.setItem('bazaar-profiles', JSON.stringify(saveProfiles(restoreProfiles(null, null))));
   localStorage.removeItem('bazaar-settings');
-  await fixture({ mode: 'all', itemsAge: 0 });
+  await fixture({ mode: 'all', itemsAge: 0, apiMode: 'success', clearSnapshot: true });
 }, 'Beide Testprofile und Fixture zurückgesetzt. Merkliste erhalten.'));
 document.querySelector('#npc-limit').addEventListener('click', () => run(async () => {
   const profiles = restoreProfiles(null, null);
@@ -40,5 +40,8 @@ for (const button of document.querySelectorAll('[data-mode]')) button.addEventLi
   () => fixture({ mode: button.dataset.mode }), `Datensatz ${button.dataset.mode} aktiv.`));
 for (const button of document.querySelectorAll('[data-age]')) button.addEventListener('click', () => run(
   () => fixture({ itemsAge: button.dataset.age }), `Itemdaten-Alter ${button.dataset.age} Stunden aktiv.`));
+for (const button of document.querySelectorAll('[data-api]')) button.addEventListener('click', () => run(
+  () => fixture({ apiMode: button.dataset.api, ...(button.dataset.api === 'unavailable' ? { clearSnapshot: true } : {}) }),
+  `API-Zustand ${button.dataset.api} aktiv.`));
 document.querySelector('#inspect').addEventListener('click', () => run(() => {}, 'Testzustand aktualisiert.'));
 void run(() => {}, 'Testzustand geladen.');

@@ -4,8 +4,12 @@
 http://127.0.0.1:4183. Keine Hypixel-Abfragen, keine npm-Abhängigkeiten.
 Optional eigenen Port über `FIXTURE_PORT` wählen. Zum Beenden Ctrl+C.
 
-Die Oberfläche und `/api/bazaar` werden ausschließlich aus lokalen Dateien und
-kontrollierten Testdaten bedient. Diese Daten sind keine echten Kurse.
+HTML, JavaScript-Module, CSS, Icon, Healthcheck, Sicherheitsheader und
+unbekannte Routen verwenden denselben `serveStatic`-Handler aus
+`http-assets.mjs` wie `server.mjs`, einschließlich expliziter Asset-Allowlist.
+Es gibt keine generische Freigabe des public-Verzeichnisses mehr. Nur die API
+und die Teststeuerung sind Fixture-spezifisch. Die kontrollierten Daten sind
+keine echten Kurse.
 `/__fixture?mode=capacity`, `mode=goals`, `mode=npc` oder `mode=all` stellt den
 Datensatz serverseitig um; danach in der Anwendung „Daten aktualisieren“ klicken.
 Der Kontrollendpunkt antwortet mit der aktiven Einstellung. `itemsAge=48`
@@ -49,3 +53,33 @@ gespeicherte Profile. Der produktive `server.mjs` wird dafür nicht verändert.
 maxAllocation20%,maxNpcItems30 und zwei gleichwertigen10-Coin-Items. Erwartet:
 zwei Positionen,30Stück insgesamt,300Coins Einsatz,60Coins Gewinn. Das Szenario
 ist auch als `mode=npclimit` verfügbar.
+
+## Produktionsstart und API-Fehler prüfen
+
+`/__setup` bietet zusätzlich sichtbare Buttons:
+
+- **API-Erfolg**: `/api/bazaar` liefert einen gültigen kontrollierten Snapshot.
+  Zur Anwendung wechseln: Scannerzeilen, Verbindung, Datenzeit und
+  Automatik-Countdown müssen erscheinen. Plan öffnen, Budget ändern und
+  Filtertrennung sowie Itemdetails prüfen.
+- **Initialer API-Fehler ·503**: setzt API-Modus `unavailable` und verwirft den
+  Test-Snapshot. Anwendung neu öffnen: Module und UI müssen starten, dann
+  „Verbindung gestört“ und verständlichen Fehler mit Wiederholung nach60Sekunden
+  zeigen. Anschließend API-Erfolg wählen und in der App aktualisieren.
+- **Aktualisierungsfehler mit Snapshot**: vorher einmal erfolgreich Daten
+  laden, dann Modus `snapshot-error` aktivieren und in der Anwendung
+  aktualisieren. Der letzte Snapshot samt Zeilen bleibt erhalten und die
+  Aktualisierungswarnung erscheint. Ohne bisherigen Snapshot liefert auch
+  dieser Modus503.
+
+Kontrollendpunkte: `/__fixture?apiMode=success`, `apiMode=unavailable` oder
+`apiMode=snapshot-error`; optional `clearSnapshot=true`. „Beide Testprofile
+und Fixture zurücksetzen“ stellt API-Erfolg wieder her. Startparameter sind
+weiterhin allein `FIXTURE_PORT` (Standard4183); keine Produktions-Testmodi.
+
+`node --test test/http-assets.test.mjs` prüft den tatsächlichen gemeinsamen
+Handler mit echten Node-HTTP-Request-/Response-Objekten auf In-Memory-Transport,
+ohne Listener oder Netzwerk: rekursiven Modulgraph aus HTML/Imports,
+GET-/HEAD-Status, exakten Dateiinhalt, MIME-/Sicherheitsheader, CSS/Icon/healthz,
+404/405 und gesperrte Repo-/Dot-/Pfadausbruch-Ziele. Damit fallen künftig
+vergessene modulare Browserdateien in der Produktions-Allowlist direkt auf.

@@ -33,6 +33,7 @@ function modules(directory) {
 const files = [
   fileURLToPath(new URL('../server.mjs', import.meta.url)),
   fileURLToPath(new URL('../polling.mjs', import.meta.url)),
+  fileURLToPath(new URL('../http-assets.mjs', import.meta.url)),
   ...modules(new URL('../public/', import.meta.url)),
   ...modules(new URL('./', import.meta.url)),
 ].sort();
