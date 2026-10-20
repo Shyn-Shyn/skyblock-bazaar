@@ -1,0 +1,10 @@
+.git
+.env
+node_modules
+test
+*.log
+README.md
+PORTAINER.md
+ICON.md
+preview.png
+skyblock-bazaar.zip

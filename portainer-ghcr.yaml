@@ -1,0 +1,24 @@
+services:
+  bazaar:
+    # Replace dein-github-name; namespace and repository must be lowercase.
+    image: ghcr.io/dein-github-name/skyblock-bazaar:latest
+    pull_policy: always
+    ports:
+      - "8080:3000"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      REFRESH_SECONDS: "60"
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

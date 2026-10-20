@@ -1,0 +1,148 @@
+export const defaults = {
+  budget: 1000000, tax: 1.25, minRoi: 2, minProfit: 0.1,
+  minDaily: 1000, horizon: 1, share: 1, maxQuantity: 71680,
+  tick: 0.1, maxRoi: 50, maxQueue: 6,
+  maxAllocation: 100, maxPositions: 6,
+  destination: 'bazaar',
+};
+
+export function parseBudget(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+  let text = String(value ?? '').trim().replace(/\s/g, '');
+  const suffix = text.match(/([kmb])$/i)?.[1]?.toLowerCase();
+  if (suffix) text = text.slice(0, -1);
+  // German grouping in full numbers; suffix inputs accept 1,5M and 1.5M.
+  if (!suffix && /^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(text)) text = text.replaceAll('.', '');
+  if (!/^\d+(?:[.,]\d+)?$/.test(text)) return NaN;
+  return Number(text.replace(',', '.')) * ({ k: 1e3, m: 1e6, b: 1e9 }[suffix] || 1);
+}
+
+export function settings(input = {}) {
+  const bounds = {
+    budget: [1, 1e12], tax: [0, 20], minRoi: [0, 100000],
+    minProfit: [0, 1e12], minDaily: [0, 1e12], horizon: [0.1, 168],
+    share: [0.01, 100], maxQuantity: [1, 1e9], tick: [0, 100000],
+    maxRoi: [0, 100000], maxQueue: [0, 100000],
+    maxAllocation: [1, 100], maxPositions: [1, 20],
+  };
+  return Object.fromEntries(Object.entries(defaults).map(([key, fallback]) => {
+    if (key === 'destination') return [key, input[key] === 'npc' ? 'npc' : 'bazaar'];
+    const n = key === 'budget' ? parseBudget(input[key] ?? fallback) : input[key] === '' ? NaN : Number(input[key] ?? fallback);
+    return [key, Number.isFinite(n) ? Math.min(bounds[key][1], Math.max(bounds[key][0], n)) : fallback];
+  }));
+}
+
+// Compare multiple bounded allocations by total modeled NET profit.
+// This is a multi-start heuristic, not proof of a global optimum.
+// Round purchase costs UP to hundredths so floating-point error cannot overspend.
+export function allocate(candidates, input = {}) {
+  const s = settings(input);
+  const budgetUnits = Math.floor(s.budget * 100);
+  const availableUnits = budgetUnits;
+  const itemCapUnits = Math.floor(budgetUnits * s.maxAllocation / 100);
+  const ranked = candidates.filter(r => r.eligible && r.quantity >= 1 && r.buy > 0 &&
+    Number.isFinite(r.buy) && Number.isFinite(r.profit) && r.profit > 0 &&
+    Number.isFinite(r.pressure) && r.pressure >= 0 && r.pressure <= s.maxQueue)
+    .map(r => ({ ...r, allocationScore: (r.profit / r.buy) / (1 + Math.log1p(r.pressure)) / (r.roi > 100 ? 3 : 1) }))
+    ;
+  const optionsFor = (remaining, seen) => ranked.filter(r => !seen.has(r.id)).map(r => {
+      const unitCost = Math.ceil(r.buy * 100);
+      const quantity = Math.floor(Math.min(r.quantity, Math.floor(s.maxQuantity),
+        Math.min(remaining, itemCapUnits) / unitCost));
+      return { r, quantity, cost: quantity * unitCost, gain: quantity * r.profit, rate: r.profit / r.buy };
+    }).filter(o => o.quantity > 0);
+  const compare = mode => (a, b) => b[mode] - a[mode] ||
+    b.r.allocationScore - a.r.allocationScore || a.r.id.localeCompare(b.r.id);
+  function build(mode, seed) {
+    let remaining = availableUnits;
+    const seen = new Set();
+    const positions = [];
+    while (positions.length < Math.floor(s.maxPositions) && remaining > 0) {
+      const options = optionsFor(remaining, seen).sort(compare(mode));
+      if (!options.length) break;
+      const option = positions.length === 0 && seed ? options.find(o => o.r.id === seed) || options[0] : options[0];
+      const { r, quantity, cost } = option;
+      seen.add(r.id);
+      remaining -= cost;
+      const hours = r.hours == null ? null : r.queueHours + (r.hours - r.queueHours) * quantity / r.quantity;
+      positions.push({ ...r, quantity, hours, capital: quantity * r.buy,
+        total: quantity * r.profit, allocationPercent: quantity * r.buy / s.budget * 100,
+        capacity: r.quantity });
+    }
+    return positions;
+  }
+  const initial = optionsFor(availableUnits, new Set());
+  const seeds = new Set(['gain', 'rate'].flatMap(mode => [...initial].sort(compare(mode)).slice(0, 8).map(o => o.r.id)));
+  const trials = ['gain', 'rate', 'cost'].map(mode => build(mode));
+  for (const seed of seeds) trials.push(build('gain', seed), build('rate', seed));
+  const totalOf = (rows, key) => rows.reduce((sum, r) => sum + r[key], 0);
+  trials.sort((a, b) => totalOf(b, 'total') - totalOf(a, 'total') ||
+    a.length - b.length || totalOf(b, 'capital') - totalOf(a, 'capital'));
+  const positions = (trials[0] || []).sort((a, b) => b.total - a.total);
+  const invested = positions.reduce((sum, r) => sum + r.capital, 0);
+  const profit = positions.reduce((sum, r) => sum + r.total, 0);
+  return { positions, invested, profit, remaining: Math.max(0, s.budget - invested),
+    unused: Math.max(0, s.budget - invested),
+    roi: invested > 0 ? profit / invested * 100 : 0 };
+}
+
+const positive = n => Number.isFinite(n) && n >= 0;
+function levels(data, direction) {
+  return (Array.isArray(data) ? data : [])
+    .filter(x => positive(x.pricePerUnit) && x.pricePerUnit > 0 && positive(x.amount) && x.amount > 0 && positive(x.orders))
+    .map(x => ({ price: x.pricePerUnit, amount: x.amount, orders: x.orders }))
+    .sort((a, b) => direction * (a.price - b.price));
+}
+
+export function analyze(product, input = defaults, name, npcPrice) {
+  const s = settings(input);
+  const npc = s.destination === 'npc';
+  // Hypixel names refer to instant transactions: sell_summary contains bids.
+  const bids = levels(product.sell_summary, -1);
+  const asks = levels(product.buy_summary, 1);
+  const q = product.quick_status;
+  const required = npc ? ['sellVolume', 'sellMovingWeek', 'sellOrders']
+    : ['sellVolume', 'buyVolume', 'sellMovingWeek', 'buyMovingWeek', 'sellOrders', 'buyOrders'];
+  if (!bids.length || (!npc && !asks.length) || !q || !required.every(k => positive(q[k])) ||
+      (npc && (!Number.isFinite(npcPrice) || npcPrice <= 0))) return null;
+  const buy = Math.round((bids[0].price + s.tick) * 1e8) / 1e8;
+  const sell = npc ? npcPrice : Math.round((asks[0].price - s.tick) * 1e8) / 1e8;
+  if (buy >= sell || buy <= 0) return null;
+  const spread = sell - buy;
+  const profit = sell * (1 - (npc ? 0 : s.tax) / 100) - buy;
+  const roi = profit / buy * 100;
+  const buyWeekly = Math.max(0, q.sellMovingWeek - q.sellVolume);
+  const sellWeekly = npc ? 0 : Math.max(0, q.buyMovingWeek - q.buyVolume);
+  const buyHourly = buyWeekly / 168;
+  const sellHourly = sellWeekly / 168;
+  const daily = (npc ? buyWeekly : Math.min(buyWeekly, sellWeekly)) / 7;
+  const bidQueue = bids.filter(x => x.price >= buy).reduce((sum, x) => sum + x.amount, 0);
+  const askQueue = npc ? 0 : asks.filter(x => x.price <= sell).reduce((sum, x) => sum + x.amount, 0);
+  const queueHours = buyHourly && (npc || sellHourly) ? bidQueue / buyHourly + (npc ? 0 : askQueue / sellHourly) : Infinity;
+  // Both legs consume time. Cap a position by its hypothetical share of flow.
+  const cycleRate = npc ? buyHourly : buyHourly && sellHourly ? 1 / (1 / buyHourly + 1 / sellHourly) : 0;
+  const flowCapacity = cycleRate * (s.share / 100) * Math.max(0, s.horizon - queueHours);
+  const quantity = Math.floor(Math.min(s.budget / buy, s.maxQuantity, flowCapacity));
+  const hours = quantity > 0 && cycleRate > 0 ? queueHours + quantity / (cycleRate * s.share / 100) : null;
+  const total = profit * quantity;
+  const bidPressure = buyHourly ? bids[0].amount / buyHourly : Infinity;
+  const askPressure = npc ? 0 : sellHourly ? asks[0].amount / sellHourly : Infinity;
+  const pressure = bidPressure + askPressure;
+  const warnings = [];
+  if (roi > 50) warnings.push('Hohe Marge – Preis und Nachfrage im Spiel prüfen');
+  if (daily < 1000) warnings.push('Geringer geschätzter Durchsatz');
+  if (pressure > 24) warnings.push('Große Orders an den besten Preisen');
+  if (Math.min(bids[0].orders, npc ? Infinity : asks[0].orders) <= 1) warnings.push('Mindestens eine Preisspitze hängt an einer einzigen Order');
+  if (npc) warnings.push('NPC-Basispreis aus Itemdaten. Verkaufbarkeit und persönliche Verkaufslimits im Spiel prüfen; keine individuellen Boni eingerechnet.');
+  const score = Math.max(0, total) / (1 + Math.log1p(pressure)) / (roi > 100 ? 3 : 1);
+  return {
+    id: product.product_id, name: name || product.product_id.replaceAll('_', ' '), destination: s.destination,
+    buy, sell, spread, profit, roi, quantity, total, capital: buy * quantity,
+    daily, buyWeekly, sellWeekly, buyHourly, sellHourly, hours,
+    bidQueue, askQueue, queueHours, pressure, score, warnings, bids, asks,
+    buyOpen: q.sellVolume, sellOpen: q.buyVolume ?? 0,
+    buyOrders: q.sellOrders, sellOrders: q.buyOrders ?? 0,
+    eligible: profit > 0 && profit >= s.minProfit && roi >= s.minRoi &&
+      roi <= s.maxRoi && daily >= s.minDaily && quantity > 0 && pressure <= s.maxQueue,
+  };
+}

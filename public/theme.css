@@ -1,0 +1,34 @@
+/* Original block-world styling; no game textures or external assets. */
+:root{--bg:#171d18;--panel:#273026;--line:#4b5940;--muted:#b0bca0;--text:#f3f0dc;--mint:#a5e064;--gold:#ffd578}
+body{background-color:var(--bg);background-image:linear-gradient(90deg,#ffffff02 1px,transparent 1px),linear-gradient(#ffffff02 1px,transparent 1px);background-size:32px 32px}
+.topbar{border-bottom:5px solid #553e2c;box-shadow:0 4px 0 #10150f;background:#202a1b;border-top:6px solid #83b94e}
+.brand{font-family:"Courier New",monospace;font-weight:bold;letter-spacing:1px}
+.brand-icon{font-size:0;display:block;width:30px;height:30px;background:linear-gradient(#93cb56 0 25%,#537d35 25% 42%,#926344 42% 72%,#68452e 72%);border:3px solid #121a0d;box-shadow:inset 4px 0 #ffffff20,inset -4px -4px #0003,4px 4px 0 #0005;transform:rotate(-5deg)}
+.brand b{color:#b7ce98}
+.intro{position:relative;padding:24px;border:2px solid #4d603b;background:linear-gradient(115deg,#2c3c24,#19251b);box-shadow:inset 0 3px #5d7547,4px 4px 0 #0c120d;margin-bottom:28px;overflow:hidden}
+.intro:after{content:"";position:absolute;right:220px;bottom:-8px;width:48px;height:48px;background:#73a74720;box-shadow:48px -48px #73a74714,96px 0 #73a74710,144px -96px #73a74712;pointer-events:none}
+h1{font-family:"Courier New",monospace;font-weight:900;letter-spacing:-2px;text-shadow:3px 3px #0d160d;font-size:clamp(28px,3.7vw,48px)}h1 em{font:inherit;color:var(--mint);font-style:normal}
+h2,.eyebrow,.stats article>span,.plan-stats span{font-family:"Courier New",monospace}.eyebrow{color:#b8d397}
+.stats,.filters,.portfolio,dialog,.table-wrap,.empty,.notice{border-radius:0;border-width:2px;box-shadow:3px 3px 0 #0b100c}
+.stats{background:#2c3428;border-top:4px solid #6f924c}.stats article{border-right:2px solid #48533d}.stats strong{text-shadow:2px 2px #121b0f}
+.filters{background:linear-gradient(90deg,#2a3025,#252d23);border-top:5px solid #81ad4d}
+.results-header h2{font-family:"Courier New",monospace;font-weight:bold;letter-spacing:-.6px}
+.portfolio{background:#252e23;border-top:5px solid #bba363}
+button{border-radius:0;border:2px solid #66715b;box-shadow:inset 2px 2px #ffffff16,inset -2px -2px #0004,2px 2px 0 #0b100c;transition:filter .12s}
+button:hover{filter:brightness(1.13)}button:active{transform:translate(1px,1px)}
+.primary,.view-tabs button[aria-selected=true]{background:linear-gradient(#a8d974,#81b84c);border-color:#c9ef9b #4e772a #4e772a #c9ef9b;color:#17220f;text-shadow:0 1px #d3edab;font-weight:700}
+.secondary,.view-tabs button{background:#394234;border-color:#68765b #1b2518 #1b2518 #68765b}
+.view-tabs{gap:12px;border:0;margin-bottom:20px;padding:0}.view-tabs button{font-family:"Courier New",monospace;font-weight:bold;color:#e4ebd7}
+input,select{border-radius:0;background:#151c13;border:2px solid #586148;box-shadow:inset 2px 2px #080d08}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid #c2f783;outline-offset:3px}input[aria-invalid=true]{border-color:#e68d73}
+th{background:#38432e;color:#d0ddba}tbody tr:nth-child(even){background:#ffffff03}tbody tr:hover{background:#38462e}
+td{border-color:#3e4b35}.item-button{font-weight:600}.item-button,.favorite,.text-button{box-shadow:none;background:none;border:0}
+.roi,.badge{border-radius:0;background:#354c24;border:1px solid #648b40}
+.plan-stats>div{padding:14px;background:#172014;border:2px solid #455637;box-shadow:inset 2px 2px #0d140a}.plan-stats strong{font-family:"Courier New",monospace;font-weight:bold;font-size:18px}
+.notice{background:#3c3522;border-color:#887140;color:#f2dba4}
+.detail-stat{border-radius:0;border:1px solid #556444}
+.refresh-box{position:relative;z-index:1;flex-shrink:0}.refresh-box span{font-size:10px}#auto-refresh{color:#b8de91}
+#budget-help{grid-column:1/-1}#destination{margin-top:8px}
+.strategy-preset{padding:12px;border:1px solid #607b44;background:#34442a;color:#d4e9b9;font-size:12px;line-height:1.8;grid-column:1/-1}
+#advanced-settings{grid-column:1/-1}#advanced-settings>label{display:block;margin-top:20px}
+@media(max-width:720px){.intro{padding:20px}.intro:after{right:20px}.view-tabs button{padding:12px 16px;font-size:12px}.stats article{padding:16px}#destination{grid-column:1/-1}.filters label[for=destination]{grid-column:1/-1}.plan-stats{gap:8px}.plan-stats>div{padding:12px}}

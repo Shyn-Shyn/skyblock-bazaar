@@ -1,0 +1,23 @@
+services:
+  bazaar:
+    image: skyblock-exchange:1.0.0
+    pull_policy: never
+    ports:
+      - "8080:3000"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      REFRESH_SECONDS: "60"
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

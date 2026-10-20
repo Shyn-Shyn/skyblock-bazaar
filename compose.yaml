@@ -1,0 +1,20 @@
+services:
+  bazaar:
+    image: skyblock-exchange:1.0.0
+    build: .
+    ports:
+      - "${BIND_ADDRESS:-0.0.0.0}:${APP_PORT:-8080}:3000"
+    environment:
+      REFRESH_SECONDS: "${REFRESH_SECONDS:-60}"
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

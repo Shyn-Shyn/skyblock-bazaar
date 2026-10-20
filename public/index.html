@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101513">
+  <title>Skyblock Exchange · Bazaar Flipper</title>
+  <link rel="icon" type="image/png" href="/app-icon.png">
+  <link rel="apple-touch-icon" href="/app-icon.png">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/theme.css">
+  <script type="module" src="/app.mjs"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-icon">▥</span><span>SKYBLOCK <b>EXCHANGE</b></span></a>
+    <span class="edition">BAZAAR TERMINAL <span>01</span></span>
+    <span id="connection" class="connection">● Verbinde …</span>
+  </header>
+  <main>
+    <section class="intro">
+      <div><p class="eyebrow">HYPIXEL SKYBLOCK / MARKET INTELLIGENCE</p><h1>Dein nächster <em>Flip.</em></h1><p class="subtitle">Finde Spreads mit Substanz. Mit Orderbuch, Volumen und deinem Budget.</p></div>
+      <div class="refresh-box"><button id="refresh" class="primary">↻ Daten aktualisieren</button><span id="timestamp">Marktdaten werden geladen …</span><span id="auto-refresh" role="timer">Automatisch · jede Minute</span></div>
+    </section>
+    <div id="notice" class="notice" role="status" hidden></div>
+    <div class="view-tabs" role="tablist" aria-label="Ansicht">
+      <button id="tab-scanner" role="tab" aria-selected="true" aria-controls="scanner-panel">Alle Flips</button>
+      <button id="tab-plan" role="tab" aria-selected="false" aria-controls="plan-panel" tabindex="-1">Investitionsplan</button>
+    </div>
+    <section class="stats" aria-label="Marktübersicht">
+      <article><span>ITEMS IM MARKT</span><strong id="stat-items">—</strong><small id="market-caption">Auswertbare Bazaar-Spreads</small></article>
+      <article><span>PASSENDE FLIPS</span><strong id="stat-matches">—</strong><small>Nach deinen Filtern</small></article>
+      <article><span>BESTER MODELLGEWINN</span><strong class="mint" id="stat-profit">—</strong><small>Pro Position · nach Steuer</small></article>
+      <article><span>DEIN GESAMTBUDGET</span><strong id="stat-budget">1,00 Mio.</strong><small>Coins · für deinen Investitionsplan</small></article>
+    </section>
+    <div class="workspace">
+      <aside class="filters">
+        <div class="section-heading"><h2>Deine Strategie</h2><button id="reset" class="text-button">Zurücksetzen</button></div>
+        <p class="hint" id="strategy-description">Buy-Order → Bazaar-Sell-Offer</p>
+        <form id="filters">
+          <label for="destination">Verkaufsziel</label><select id="destination" name="destination" aria-label="Verkaufsziel"><option value="bazaar">Bazaar · Sell-Offer</option><option value="npc">NPC · fester Verkaufspreis</option></select>
+          <p class="hint">Einkauf jeweils per Bazaar-Buy-Order, kein Sofortkauf. Filter gelten für beide Reiter.</p>
+          <label>Gesamtbudget <span>Coins</span><input name="budget" type="text" inputmode="text" autocomplete="off" spellcheck="false" value="1.000.000" aria-describedby="budget-help"></label>
+          <p id="budget-help" class="hint" aria-live="polite">1.000.000 Coins · auch 1M, 10M oder 1,5M möglich</p>
+          <p id="strategy-preset" class="strategy-preset">Gewinnorientiert · bis zu 6 Items<br>Durchsatz und Orderbuch werden berücksichtigt.</p>
+          <details id="advanced-settings"><summary>Strategie anpassen</summary>
+          <div id="allocation-controls" hidden>
+          <p class="hint">100 % deines Budgets stehen zur Verteilung bereit. Keine Reserve.</p>
+          <label>Max. je Item <span>%</span><input name="maxAllocation" type="number" min="1" max="100" step="1" value="100"></label>
+          <label>Max. verschiedene Items<input name="maxPositions" type="number" min="1" max="20" step="1" value="6"></label>
+          </div>
+          <div class="form-row"><label>Min. Netto-ROI <span>%</span><input name="minRoi" type="number" min="0" max="100000" step="0.1" value="2"></label><label>Verkaufssteuer <span>%</span><input name="tax" type="number" min="0" max="20" step="0.01" value="1.25"></label></div>
+          <label>Min. Tagesdurchsatz <span>Items / Seite</span><input name="minDaily" type="number" min="0" max="1000000000000" step="1" value="1000"></label>
+          <div class="form-row"><label>Zeithorizont <span>Std.</span><input name="horizon" type="number" min="0.1" max="168" step="0.1" value="1"></label><label>Marktanteil <span>%</span><input name="share" type="number" min="0.01" max="100" step="0.01" value="1"></label></div>
+          <p class="hint">Der Marktanteil ist deine Annahme, welcher Anteil des geschätzten Durchsatzes auf deine Orders entfällt.</p>
+            <label>Max. Netto-ROI <span>%</span><input name="maxRoi" type="number" min="0" max="100000" step="1" value="50"></label>
+            <label>Max. Orderdruck <span>Std.</span><input name="maxQueue" type="number" min="0" max="100000" step="1" value="6"></label>
+            <p class="hint">Startwerte: 1 Stunde, 1 % angenommener Marktanteil, mindestens 1.000 Items/Tag je benötigter Seite, 2–50 % Netto-ROI. Das sind Modellannahmen, keine nachgewiesen optimalen Werte.</p>
+          </details>
+          <input name="minProfit" type="hidden" value="0.1">
+          <input name="maxQuantity" type="hidden" value="71680">
+          <input name="tick" type="hidden" value="0.1">
+        </form>
+        <div class="filter-note"><span>◇</span><p id="tax-note">Steuer im Spiel prüfen und hier anpassen. 1,25 % ist ein konfigurierbarer Startwert.</p></div>
+      </aside>
+      <section class="results">
+        <p id="npc-status" class="notice" role="status" hidden></p>
+        <section id="plan-panel" class="portfolio" role="tabpanel" aria-labelledby="tab-plan" hidden>
+          <div class="results-header"><div><p class="eyebrow">DEINE COINS VERTEILEN</p><h2>Dein Investitionsplan</h2></div><button id="export-plan" class="secondary" disabled>Plan als CSV ↗</button></div>
+          <p class="hint">Der Plan vergleicht mehrere Aufteilungen und wählt den höchsten berechneten Nettogewinn. Durchsatz und Orderbuch begrenzen die Mengen. Eine einzelne Position ist erlaubt; eine Verteilung wird nicht erzwungen.</p>
+          <div class="plan-stats">
+            <div><span>EINGEPLANT</span><strong id="plan-invested">—</strong></div>
+            <div><span>NOCH NICHT ZUGETEILT</span><strong id="plan-remaining">—</strong></div>
+            <div><span>NETTOGEWINN · MODELL</span><strong id="plan-profit" class="mint">—</strong></div>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>ITEM</th><th>KAUFMENGE</th><th>BUY-ORDER <small>Coins / Item</small></th><th><span id="sell-heading">SELL-OFFER</span><small>Coins / Item</small></th><th>EINSATZ <small>Coins · Budgetanteil</small></th><th>NETTOGEWINN <small>Coins · Modell</small></th><th>DAUER <small>Std. · Modell</small></th></tr></thead><tbody id="plan-rows"></tbody></table></div>
+          <p id="plan-summary" class="detail-note" role="status">Der Plan wird mit den Marktdaten berechnet.</p>
+          <details><summary>So setzt du den Plan um</summary><ol class="detail-note">
+            <li>Prüfe Preise und Steuer im Spiel. Setze für jedes Item eine Buy-Order mit der angegebenen Kaufmenge und dem Preis pro Item.</li>
+            <li id="sell-instruction">Verkaufe gefüllte Mengen anschließend als Sell-Offer zum angegebenen Preis. Die Verkaufssteuer ist im Modellgewinn enthalten.</li>
+            <li>Prüfe bei Überbieten oder Preisänderungen erneut den Nettoprofit. Ziehe schon gebundene Coins vom Budget ab, bevor du einen neuen Plan nutzt.</li>
+          </ol></details>
+          <p class="disclaimer">Aktualisiert sich mit den Live-Daten und Strategie-Einstellungen. Bestehende eigene Orders werden nicht erfasst. Heuristische Verteilung, kein garantierter Maximalgewinn; alle Positionen werden als parallel betreut angenommen.</p>
+        </section>
+        <section id="scanner-panel" role="tabpanel" aria-labelledby="tab-scanner">
+        <div class="results-header"><div><p class="eyebrow">MARKTSCANNER</p><h2>Flip-Kandidaten <span id="count" class="badge">0</span></h2></div><button id="export" class="secondary" disabled>CSV exportieren ↗</button></div>
+        <div class="toolbar"><input id="search" type="search" placeholder="Item suchen …" aria-label="Item suchen"><label class="sort-label">Sortieren<select id="sort"><option value="score">Empfehlung</option><option value="total">Modellgewinn</option><option value="roi">Netto-ROI</option><option value="daily">Tagesdurchsatz</option><option value="profit">Profit / Item</option></select></label><label class="watch-toggle"><input id="watch-only" type="checkbox">★ Merkliste</label></div>
+        <div class="table-wrap"><table><thead><tr><th><span class="sr-only">Merken</span></th><th>ITEM</th><th>KAUF / VERKAUF <small id="scanner-price-label">Coins je Item · Bazaar</small></th><th>NETTO / ITEM</th><th>NETTO-ROI</th><th>DURCHSATZ / TAG <small id="flow-heading">schwächere Seite · geschätzt</small></th><th>MENGE <small>Modell</small></th><th>GEWINN <small>Modell · Coins</small></th></tr></thead><tbody id="rows"></tbody></table></div>
+        <div id="empty" class="empty">Marktdaten werden geladen …</div>
+        <div class="table-footer"><span id="result-description">Warte auf Hypixel …</span><button id="more" class="text-button" hidden>Weitere 50 anzeigen ↓</button></div>
+        <p class="disclaimer">Der Scanner zeigt alternative Einzel-Flips mit jeweils dem gesamten Budget. Der Reiter Investitionsplan teilt dein Budget gemeinsam auf. Modellwerte, keine Gewinn- oder Füllgarantie.</p>
+        </section>
+      </section>
+    </div>
+    <details class="method"><summary>Wie werden die Empfehlungen berechnet?</summary><div>
+      <p><b>Preise:</b> Höchstes Kaufgebot + Preisverbesserung → niedrigstes Verkaufsangebot − Preisverbesserung. Die API nennt die Gebote <code>sell_summary</code> und Angebote <code>buy_summary</code>. Wir nutzen das Orderbuch statt gewichteter Durchschnittspreise.</p>
+      <p><b>Nettoprofit:</b> Verkaufspreis × (1 − Steuer / 100) − Einkaufspreis. ROI = Nettoprofit / Einkaufspreis. Zusätzliche individuelle Kosten sind nicht enthalten.</p>
+      <p><b>NPC-Flips:</b> Bazaar-Buy-Order → NPC-Verkauf zum Basispreis <code>npc_sell_price</code> aus den Hypixel-Itemdaten. Keine Bazaar-Verkaufssteuer. Menge, Durchsatz, Warteschlange und Zeit werden nur für den Einkauf berechnet; die manuelle Zeit beim NPC wird nicht geschätzt. Ohne gültigen NPC-Preis wird ein Item ausgeschlossen. Individuelle Boni, Verkaufslimits und bereits verkaufte Mengen werden nicht erfasst.</p>
+      <p><b>Durchsatz:</b> max(0, movingWeek − offenes Volumen) / 7, getrennt für beide Seiten. Die API beschreibt movingWeek als gehandelte Wochenmenge plus Live-Bestand. Daraus wird ein gleichmäßiger Durchsatz angenähert; einzelne Trades und echte Füllzeiten sind nicht verfügbar.</p>
+      <p><b>Menge:</b> Begrenzt durch Budget, Mengenlimit und geschätzten Durchsatz beider nacheinander ausgeführter Schritte innerhalb des Zeithorizonts. Dein angenommener Marktanteil reduziert den nutzbaren Durchsatz. Bei Preisverbesserung 0 wird die sichtbare gleichpreisige Warteschlange mitgerechnet.</p>
+      <p><b>Orderdruck:</b> Menge am besten Kaufpreis / geschätzter Einkaufsdurchsatz pro Stunde + Menge am besten Verkaufspreis / Verkaufsdurchsatz pro Stunde. Empfehlung = positiver Positionsgewinn / (1 + ln(1 + Orderdruck)); ROI über 100 % erhält zusätzlich Faktor ⅓. Dies ist eine Heuristik, kein validiertes Prognosemodell.</p>
+      <p><b>Investitionsplan:</b> Vergleicht Aufteilungen nach Positionsgewinn, Rendite und Budgetnutzung sowie alternative Startpositionen aus den jeweils acht besten Gewinn- und Renditekandidaten. Gewählt wird die Variante mit dem höchsten berechneten Nettogewinn, bei Gleichstand die mit weniger Items. Durchsatz, Warteschlangen, Orderdruck und Positionslimits gelten für alle Varianten. Keine Reserve; Restbeträge bleiben möglich. Diese begrenzte Suche garantiert kein globales Optimum und prognostiziert keine tatsächlichen Füllungen.</p>
+      <p><b>Grenzen:</b> Nur die von Hypixel gelieferten bis zu 30 Orderbuch-Einträge pro Seite sind sichtbar. Orderänderungen, Stornierungen und Manipulation lassen sich aus einer Momentaufnahme nicht sicher erkennen. <a href="https://api.hypixel.net/#tag/SkyBlock/paths/~1v2~1skyblock~1bazaar/get" target="_blank" rel="noreferrer">Hypixel-API-Dokumentation ↗</a></p>
+    </div></details>
+    <footer><span>SKYBLOCK EXCHANGE <span class="muted">/ Independent community tool</span></span><span>Nicht mit Mojang oder Hypixel verbunden.</span></footer>
+  </main>
+  <dialog id="detail"><div class="dialog-top"><span class="eyebrow">FLIP ANALYSE</span><button id="close-detail" class="secondary">Schließen ×</button></div><div id="detail-content"></div></dialog>
+</body>
+</html>
