@@ -31,18 +31,27 @@
       <article><span>ITEMS IM MARKT</span><strong id="stat-items">—</strong><small id="market-caption">Auswertbare Bazaar-Spreads</small></article>
       <article><span>PASSENDE FLIPS</span><strong id="stat-matches">—</strong><small>Nach deinen Filtern</small></article>
       <article><span>BESTER MODELLGEWINN</span><strong class="mint" id="stat-profit">—</strong><small>Pro Position · nach Steuer</small></article>
-      <article><span>DEIN GESAMTBUDGET</span><strong id="stat-budget">1,00 Mio.</strong><small>Coins · für deinen Investitionsplan</small></article>
+      <article><span>BUDGET DIESER ANSICHT</span><strong id="stat-budget">1,00 Mio.</strong><small>Coins · unabhängig je Reiter</small></article>
     </section>
     <div class="workspace">
       <aside class="filters">
-        <div class="section-heading"><h2>Deine Strategie</h2><button id="reset" class="text-button">Zurücksetzen</button></div>
+        <div class="section-heading"><h2 id="filter-heading">Filter · Alle Flips</h2><button id="reset" class="text-button">Zurücksetzen</button></div>
         <p class="hint" id="strategy-description">Buy-Order → Bazaar-Sell-Offer</p>
         <form id="filters">
           <label for="destination">Verkaufsziel</label><select id="destination" name="destination" aria-label="Verkaufsziel"><option value="bazaar">Bazaar · Sell-Offer</option><option value="npc">NPC · fester Verkaufspreis</option></select>
-          <p class="hint">Einkauf jeweils per Bazaar-Buy-Order, kein Sofortkauf. Filter gelten für beide Reiter.</p>
+          <p class="hint">Einkauf jeweils per Bazaar-Buy-Order, kein Sofortkauf. Filter gelten nur für den aktiven Reiter.</p>
+          <p class="hint" id="profile-help"></p>
           <label>Gesamtbudget <span>Coins</span><input name="budget" type="text" inputmode="text" autocomplete="off" spellcheck="false" value="1.000.000" aria-describedby="budget-help"></label>
           <p id="budget-help" class="hint" aria-live="polite">1.000.000 Coins · auch 1M, 10M oder 1,5M möglich</p>
           <p id="strategy-preset" class="strategy-preset">Gewinnorientiert · bis zu 6 Items<br>Durchsatz und Orderbuch werden berücksichtigt.</p>
+          <div id="bazaar-goal-controls" hidden>
+            <label>Planungsziel<select name="allocationGoal"><option value="budget">Budget ausschöpfen</option><option value="profit">Nettogewinn</option></select></label>
+          </div>
+          <div id="npc-controls" hidden>
+            <label>NPC-Planungsziel<select name="npcPreference"><option value="compact">Wenige Stück bevorzugen</option><option value="profit">Nettogewinn</option></select></label>
+            <label>Max. NPC-Stückzahl gesamt<input name="maxNpcItems" type="number" min="1" max="1000000000" step="1" value="2048"></label>
+            <p class="hint">Persönliche Vorgabe über alle Planpositionen, keine Hypixel-Verkaufsgrenze. Weniger Stücke können weniger Gewinn und freies Budget bedeuten.</p>
+          </div>
           <details id="advanced-settings"><summary>Strategie anpassen</summary>
           <div id="allocation-controls" hidden>
           <p class="hint">100 % deines Budgets stehen zur Verteilung bereit. Keine Reserve.</p>
@@ -55,7 +64,7 @@
           <p class="hint">Der Marktanteil ist deine Annahme, welcher Anteil des geschätzten Durchsatzes auf deine Orders entfällt.</p>
             <label>Max. Netto-ROI <span>%</span><input name="maxRoi" type="number" min="0" max="100000" step="1" value="50"></label>
             <label>Max. Orderdruck <span>Std.</span><input name="maxQueue" type="number" min="0" max="100000" step="1" value="6"></label>
-            <p class="hint">Startwerte: 1 Stunde, 1 % angenommener Marktanteil, mindestens 1.000 Items/Tag je benötigter Seite, 2–50 % Netto-ROI. Das sind Modellannahmen, keine nachgewiesen optimalen Werte.</p>
+            <p class="hint">Startwerte: Scanner 1 Stunde, Plan 24 Stunden; jeweils 1 % angenommener Marktanteil, mindestens 1.000 Items/Tag je benötigter Seite, 2–50 % Netto-ROI. Das sind Modellannahmen, keine nachgewiesen optimalen Werte.</p>
           </details>
           <input name="minProfit" type="hidden" value="0.1">
           <input name="maxQuantity" type="hidden" value="71680">
@@ -67,11 +76,13 @@
         <p id="npc-status" class="notice" role="status" hidden></p>
         <section id="plan-panel" class="portfolio" role="tabpanel" aria-labelledby="tab-plan" hidden>
           <div class="results-header"><div><p class="eyebrow">DEINE COINS VERTEILEN</p><h2>Dein Investitionsplan</h2></div><button id="export-plan" class="secondary" disabled>Plan als CSV ↗</button></div>
-          <p class="hint">Der Plan vergleicht mehrere Aufteilungen und wählt den höchsten berechneten Nettogewinn. Durchsatz und Orderbuch begrenzen die Mengen. Eine einzelne Position ist erlaubt; eine Verteilung wird nicht erzwungen.</p>
+          <p class="hint" id="plan-goal-description">Der Plan vergleicht mehrere Aufteilungen nach deinem Planungsziel.</p>
+          <p class="hint">Durchsatz und Orderbuch begrenzen die Mengen. Eine einzelne Position ist erlaubt; eine Verteilung wird nicht erzwungen. Die begrenzte Suche garantiert kein globales Optimum.</p>
           <div class="plan-stats">
             <div><span>EINGEPLANT</span><strong id="plan-invested">—</strong></div>
             <div><span>NOCH NICHT ZUGETEILT</span><strong id="plan-remaining">—</strong></div>
             <div><span>NETTOGEWINN · MODELL</span><strong id="plan-profit" class="mint">—</strong></div>
+            <div><span>KAUFMENGE GESAMT</span><strong id="plan-quantity">—</strong></div>
           </div>
           <div class="table-wrap"><table><thead><tr><th>ITEM</th><th>KAUFMENGE</th><th>BUY-ORDER <small>Coins / Item</small></th><th><span id="sell-heading">SELL-OFFER</span><small>Coins / Item</small></th><th>EINSATZ <small>Coins · Budgetanteil</small></th><th>NETTOGEWINN <small>Coins · Modell</small></th><th>DAUER <small>Std. · Modell</small></th></tr></thead><tbody id="plan-rows"></tbody></table></div>
           <p id="plan-summary" class="detail-note" role="status">Der Plan wird mit den Marktdaten berechnet.</p>
@@ -99,7 +110,9 @@
       <p><b>Durchsatz:</b> max(0, movingWeek − offenes Volumen) / 7, getrennt für beide Seiten. Die API beschreibt movingWeek als gehandelte Wochenmenge plus Live-Bestand. Daraus wird ein gleichmäßiger Durchsatz angenähert; einzelne Trades und echte Füllzeiten sind nicht verfügbar.</p>
       <p><b>Menge:</b> Begrenzt durch Budget, Mengenlimit und geschätzten Durchsatz beider nacheinander ausgeführter Schritte innerhalb des Zeithorizonts. Dein angenommener Marktanteil reduziert den nutzbaren Durchsatz. Bei Preisverbesserung 0 wird die sichtbare gleichpreisige Warteschlange mitgerechnet.</p>
       <p><b>Orderdruck:</b> Menge am besten Kaufpreis / geschätzter Einkaufsdurchsatz pro Stunde + Menge am besten Verkaufspreis / Verkaufsdurchsatz pro Stunde. Empfehlung = positiver Positionsgewinn / (1 + ln(1 + Orderdruck)); ROI über 100 % erhält zusätzlich Faktor ⅓. Dies ist eine Heuristik, kein validiertes Prognosemodell.</p>
-      <p><b>Investitionsplan:</b> Vergleicht Aufteilungen nach Positionsgewinn, Rendite und Budgetnutzung sowie alternative Startpositionen aus den jeweils acht besten Gewinn- und Renditekandidaten. Gewählt wird die Variante mit dem höchsten berechneten Nettogewinn, bei Gleichstand die mit weniger Items. Durchsatz, Warteschlangen, Orderdruck und Positionslimits gelten für alle Varianten. Keine Reserve; Restbeträge bleiben möglich. Diese begrenzte Suche garantiert kein globales Optimum und prognostiziert keine tatsächlichen Füllungen.</p>
+      <p><b>Getrennte Filter:</b> Alle Flips und Investitionsplan speichern eigene Strategieparameter und Budgets. Zurücksetzen betrifft nur die aktive Ansicht. Suche, Sortierung und Merkliste filtern nur den Scanner. Bestehende Einstellungen werden für den Scanner übernommen; der Plan übernimmt zunächst Budget, Verkaufsziel und Steuer, startet sonst mit 24 Stunden und bis zu zwölf Positionen.</p>
+      <p><b>Investitionsplan:</b> Vergleicht Aufteilungen nach Positionsgewinn, Rendite und Budgetnutzung sowie alternative Startpositionen aus den jeweils acht besten Kandidaten dieser Kriterien. Bazaar-Ziel „Budget ausschöpfen“ priorisiert eingesetzte Coins vor Nettogewinn; „Nettogewinn“ priorisiert tatsächlichen Modellgewinn. Dadurch kann jeweils weniger Gewinn oder mehr Restbudget entstehen. Durchsatz, Warteschlangen, Orderdruck und Positionslimits gelten immer. Keine Reserve; nur ganze Stücke. Die begrenzte Suche garantiert kein globales Optimum und prognostiziert keine tatsächlichen Füllungen. Ein längerer Zeithorizont erhöht das Preisänderungsrisiko.</p>
+      <p><b>NPC-Aufwand:</b> Das Gesamtstücklimit (Startwert 2.048) gilt gemeinsam für alle Planpositionen. „Wenige Stück bevorzugen“ bewertet Varianten nach tatsächlichem Nettogewinn / (1 + Gesamtstückzahl / 64), bei Gleichstand nach weniger Stücken und höherem Gewinn. Auch kürzere Varianten werden verglichen. 64 ist eine reine Heuristik-Skalierung und keine Spiel-/Stackregel. Die angezeigten Coin-Gewinne bleiben unverändert; manuelle Verkaufszeit wird nicht geschätzt. „Nettogewinn“ priorisiert Gewinn unter demselben Stücklimit. Beide Werte sind persönliche Planungsvorgaben, keine NPC-Verkaufsgrenzen.</p>
       <p><b>Grenzen:</b> Nur die von Hypixel gelieferten bis zu 30 Orderbuch-Einträge pro Seite sind sichtbar. Orderänderungen, Stornierungen und Manipulation lassen sich aus einer Momentaufnahme nicht sicher erkennen. <a href="https://api.hypixel.net/#tag/SkyBlock/paths/~1v2~1skyblock~1bazaar/get" target="_blank" rel="noreferrer">Hypixel-API-Dokumentation ↗</a></p>
     </div></details>
     <footer><span>SKYBLOCK EXCHANGE <span class="muted">/ Independent community tool</span></span><span>Nicht mit Mojang oder Hypixel verbunden.</span></footer>

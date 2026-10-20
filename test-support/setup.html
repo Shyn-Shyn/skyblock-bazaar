@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Offline-Testsetup</title>
+<style>body{max-width:960px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#19301e;background:#f1f5ed}button,a{font:inherit}button{padding:10px;margin:5px;cursor:pointer}section{padding:16px;border:1px solid #78936b;margin:20px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}#status{font-weight:bold}</style>
+<script type="module" src="/__setup.mjs"></script></head><body>
+<h1>Offline-Testsetup</h1><p>Nur der lokale Fixture-Server liefert diese Seite aus. Alle Profilaktionen betreffen ausschließlich den Browserspeicher dieser Testadresse. Keine echten Marktpreise oder Hypixel-Abfragen.</p>
+<p><a href="/">Zur Anwendung →</a></p><p id="status" role="status">Lade Testzustand …</p>
+<section><h2>Profile vorbereiten</h2>
+<button id="legacy">Legacy-Migration AC-02 vorbereiten</button>
+<button id="defaults">Beide Testprofile und Fixture zurücksetzen</button>
+<button id="npc-limit">NPC-Mehrpositionslimit vorbereiten</button>
+<p>Legacy: Budget1.234.567, Steuer1,8%, NPC, Horizont3h, Mindest-ROI7%; neue Profile entfernen. Erwarteter Plan:24h/ROI2/12Positionen mit übernommenem Budget/Ziel/Steuer. Die Merkliste bleibt erhalten.</p>
+<p>Mehrpositionslimit: NPC-Plan, Budget1000, Limit30, maximal20% je Item; zwei10-Coin-Items. Erwartet30Stück über zwei Positionen, Einsatz300/Gewinn60. Scanner bleibt auf eigenen Defaults.</p></section>
+<section><h2>Fixture-Datensatz</h2>
+<button data-mode="all">Alle Fixtures</button><button data-mode="capacity">Kapazität</button><button data-mode="goals">Bazaar-Zielvergleich</button><button data-mode="npc">NPC-Kompaktvergleich</button><button data-mode="npclimit">NPC-Mehrpositionslimit</button>
+<h2>Alter der NPC-Itemdaten</h2><button data-age="0">Frische Itemdaten ·0h</button><button data-age="48">Veraltete Itemdaten ·48h</button>
+<p>Danach zur Anwendung wechseln und bei bereits geöffneten Ansichten „Daten aktualisieren“ klicken.</p></section>
+<section><h2>Aktueller Testzustand</h2><button id="inspect">Zustand neu anzeigen</button><pre id="state"></pre></section>
+</body></html>

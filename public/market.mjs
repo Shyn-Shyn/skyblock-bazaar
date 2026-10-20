@@ -4,7 +4,10 @@ export const defaults = {
   tick: 0.1, maxRoi: 50, maxQueue: 6,
   maxAllocation: 100, maxPositions: 6,
   destination: 'bazaar',
+  allocationGoal: 'profit', maxNpcItems: 2048, npcPreference: 'compact',
 };
+
+export const planDefaults = { ...defaults, horizon: 24, maxPositions: 12, allocationGoal: 'budget' };
 
 export function parseBudget(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
@@ -17,18 +20,23 @@ export function parseBudget(value) {
   return Number(text.replace(',', '.')) * ({ k: 1e3, m: 1e6, b: 1e9 }[suffix] || 1);
 }
 
-export function settings(input = {}) {
+export function settings(input = {}, fallbackSettings = defaults) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) input = {};
   const bounds = {
     budget: [1, 1e12], tax: [0, 20], minRoi: [0, 100000],
     minProfit: [0, 1e12], minDaily: [0, 1e12], horizon: [0.1, 168],
     share: [0.01, 100], maxQuantity: [1, 1e9], tick: [0, 100000],
     maxRoi: [0, 100000], maxQueue: [0, 100000],
     maxAllocation: [1, 100], maxPositions: [1, 20],
+    maxNpcItems: [1, 1e9],
   };
-  return Object.fromEntries(Object.entries(defaults).map(([key, fallback]) => {
+  return Object.fromEntries(Object.entries(fallbackSettings).map(([key, fallback]) => {
     if (key === 'destination') return [key, input[key] === 'npc' ? 'npc' : 'bazaar'];
+    if (key === 'allocationGoal') return [key, ['profit', 'budget'].includes(input[key]) ? input[key] : fallback];
+    if (key === 'npcPreference') return [key, input[key] === 'profit' ? 'profit' : 'compact'];
     const n = key === 'budget' ? parseBudget(input[key] ?? fallback) : input[key] === '' ? NaN : Number(input[key] ?? fallback);
-    return [key, Number.isFinite(n) ? Math.min(bounds[key][1], Math.max(bounds[key][0], n)) : fallback];
+    const value = Number.isFinite(n) ? Math.min(bounds[key][1], Math.max(bounds[key][0], n)) : fallback;
+    return [key, ['maxQuantity', 'maxPositions', 'maxNpcItems'].includes(key) ? Math.floor(value) : value];
   }));
 }
 
@@ -40,49 +48,70 @@ export function allocate(candidates, input = {}) {
   const budgetUnits = Math.floor(s.budget * 100);
   const availableUnits = budgetUnits;
   const itemCapUnits = Math.floor(budgetUnits * s.maxAllocation / 100);
-  const ranked = candidates.filter(r => r.eligible && r.quantity >= 1 && r.buy > 0 &&
+  const npc = s.destination === 'npc';
+  const compactNpc = npc && s.npcPreference === 'compact';
+  const totalOf = (rows, key) => rows.reduce((sum, r) => sum + r[key], 0);
+  const seenIds = new Set();
+  const ranked = candidates.filter(r => r.eligible && r.quantity >= 1 && Number.isFinite(r.quantity) && r.buy > 0 &&
     Number.isFinite(r.buy) && Number.isFinite(r.profit) && r.profit > 0 &&
-    Number.isFinite(r.pressure) && r.pressure >= 0 && r.pressure <= s.maxQueue)
+    Number.isFinite(r.pressure) && r.pressure >= 0 && r.pressure <= s.maxQueue &&
+    !seenIds.has(r.id) && seenIds.add(r.id))
     .map(r => ({ ...r, allocationScore: (r.profit / r.buy) / (1 + Math.log1p(r.pressure)) / (r.roi > 100 ? 3 : 1) }))
     ;
-  const optionsFor = (remaining, seen) => ranked.filter(r => !seen.has(r.id)).map(r => {
+  const optionsFor = (remaining, seen, itemsLeft = npc ? s.maxNpcItems : Infinity) => ranked.filter(r => !seen.has(r.id)).map(r => {
       const unitCost = Math.ceil(r.buy * 100);
-      const quantity = Math.floor(Math.min(r.quantity, Math.floor(s.maxQuantity),
+      const quantity = Math.floor(Math.min(r.quantity, s.maxQuantity, itemsLeft,
         Math.min(remaining, itemCapUnits) / unitCost));
-      return { r, quantity, cost: quantity * unitCost, gain: quantity * r.profit, rate: r.profit / r.buy };
+      return { r, quantity, cost: quantity * unitCost, gain: quantity * r.profit, rate: r.profit / r.buy,
+        capital: quantity * r.buy, compact: quantity * r.profit / (1 + quantity / 64) };
     }).filter(o => o.quantity > 0);
   const compare = mode => (a, b) => b[mode] - a[mode] ||
     b.r.allocationScore - a.r.allocationScore || a.r.id.localeCompare(b.r.id);
+  const trials = [];
   function build(mode, seed) {
     let remaining = availableUnits;
     const seen = new Set();
     const positions = [];
+    let itemsLeft = npc ? s.maxNpcItems : Infinity;
     while (positions.length < Math.floor(s.maxPositions) && remaining > 0) {
-      const options = optionsFor(remaining, seen).sort(compare(mode));
+      const options = optionsFor(remaining, seen, itemsLeft).sort(compare(mode));
       if (!options.length) break;
       const option = positions.length === 0 && seed ? options.find(o => o.r.id === seed) || options[0] : options[0];
       const { r, quantity, cost } = option;
       seen.add(r.id);
       remaining -= cost;
+      itemsLeft -= quantity;
       const hours = r.hours == null ? null : r.queueHours + (r.hours - r.queueHours) * quantity / r.quantity;
       positions.push({ ...r, quantity, hours, capital: quantity * r.buy,
         total: quantity * r.profit, allocationPercent: quantity * r.buy / s.budget * 100,
         capacity: r.quantity });
+      // A later low-margin bulk position can reduce the NPC effort utility.
+      if (compactNpc) trials.push([...positions]);
     }
     return positions;
   }
   const initial = optionsFor(availableUnits, new Set());
-  const seeds = new Set(['gain', 'rate'].flatMap(mode => [...initial].sort(compare(mode)).slice(0, 8).map(o => o.r.id)));
-  const trials = ['gain', 'rate', 'cost'].map(mode => build(mode));
+  const modes = compactNpc ? ['gain', 'rate', 'capital', 'compact'] : ['gain', 'rate', 'capital'];
+  const seeds = new Set(modes.flatMap(mode => [...initial].sort(compare(mode)).slice(0, 8).map(o => o.r.id)));
+  for (const mode of modes) trials.push(build(mode));
   for (const seed of seeds) trials.push(build('gain', seed), build('rate', seed));
-  const totalOf = (rows, key) => rows.reduce((sum, r) => sum + r[key], 0);
-  trials.sort((a, b) => totalOf(b, 'total') - totalOf(a, 'total') ||
-    a.length - b.length || totalOf(b, 'capital') - totalOf(a, 'capital'));
+  const utility = rows => totalOf(rows, 'total') / (1 + totalOf(rows, 'quantity') / 64);
+  trials.sort((a, b) => compactNpc
+    ? utility(b) - utility(a) || totalOf(a, 'quantity') - totalOf(b, 'quantity') || totalOf(b, 'total') - totalOf(a, 'total')
+    : !npc && s.allocationGoal === 'budget'
+      ? totalOf(b, 'capital') - totalOf(a, 'capital') || totalOf(b, 'total') - totalOf(a, 'total') || a.length - b.length
+      : totalOf(b, 'total') - totalOf(a, 'total') || a.length - b.length || totalOf(b, 'capital') - totalOf(a, 'capital'));
   const positions = (trials[0] || []).sort((a, b) => b.total - a.total);
   const invested = positions.reduce((sum, r) => sum + r.capital, 0);
   const profit = positions.reduce((sum, r) => sum + r.total, 0);
+  const maxTrialCapital = Math.max(0, ...trials.map(rows => totalOf(rows, 'capital')));
   return { positions, invested, profit, remaining: Math.max(0, s.budget - invested),
     unused: Math.max(0, s.budget - invested),
+    quantity: totalOf(positions, 'quantity'), eligibleCount: ranked.length,
+    modelCapital: ranked.reduce((sum, r) => sum + Math.min(r.quantity, s.maxQuantity) * r.buy, 0),
+    objectiveLeavesCapital: maxTrialCapital > invested + .01,
+    itemCapActive: ranked.some(r => Math.min(r.quantity, s.maxQuantity) * Math.ceil(r.buy * 100) > itemCapUnits),
+    positionCapActive: positions.length >= s.maxPositions && ranked.some(r => !positions.some(p => p.id === r.id)),
     roi: invested > 0 ? profit / invested * 100 : 0 };
 }
 

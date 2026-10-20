@@ -1,5 +1,13 @@
 # Skyblock Exchange
 
+## Entwicklung mit dem Codex-Team
+
+PO, Developer und unabhängige QA sind im Repository eingerichtet. Öffne das
+Projekt in Codex und nenne deine Anforderung; `AGENTS.md` steuert die Übergaben
+und die Rückgabe von QA-Fehlern an den Developer.
+[Bedienung, Rollen und Ablauf](docs/agents/README.md).
+Lokale Prüfung ohne Installation: `node scripts/check.mjs`.
+
 Skyblock Exchange ist eine selbst gehostete Web-App für **Hypixel SkyBlock**, die Bazaar-Flips findet und aus einem vorgegebenen Budget einen Investitionsplan erstellt. Sie berücksichtigt Preisspreads, Verkaufssteuer, offene Ordermengen und den geschätzten Handelsdurchsatz.
 
 Die App bietet eine deutschsprachige Weboberfläche im Minecraft-inspirierten Design. Sie empfiehlt Trades; Käufe und Verkäufe führst du selbst im Spiel aus.
@@ -21,27 +29,31 @@ Der Einkauf erfolgt in beiden Fällen per Buy-Order, nicht als Sofortkauf.
 
 Budget eingeben, Verkaufsziel auswählen und die vorgeschlagene Aufteilung prüfen. Eingaben wie `1M`, `10M`, `1,5M` oder `500K` werden automatisch als Coins interpretiert.
 
-- Standardmäßig höchstens **sechs verschiedene Items**.
+- Eigene Filter und eigenes Budget, unabhängig vom Reiter **Alle Flips**.
+- Standardmäßig höchstens **zwölf verschiedene Items** und **24 Stunden** Planungszeitraum.
 - Bis zu **100 % des Budgets in einem Item**, sofern die Modellgrenzen das erlauben.
 - Keine eingeplante Reserve. Ganze Stückzahlen, Durchsatz und Positionslimits können Restbeträge verursachen.
-- Vergleich mehrerer Aufteilungen anhand ihres modellierten Nettogewinns.
+- Bazaar-Ziel **Budget ausschöpfen** priorisiert eingesetzte Coins; alternativ **Nettogewinn**. Mehr Budgetnutzung kann weniger Gewinn bedeuten.
+- NPC-Ziel **Wenige Stück bevorzugen** berücksichtigt den manuellen Stückaufwand. Das persönliche **Gesamtstücklimit** startet bei **2.048** über alle Positionen; alternativ lässt sich Nettogewinn unter demselben Limit priorisieren.
 - Anzeige von Kaufmengen, Einsatz, Budgetanteilen, Nettogewinn und geschätzter Dauer.
 - Eigener CSV-Export für den Plan.
 
 Unter **Strategie anpassen** lassen sich unter anderem Itemanzahl, Budgetanteil je Item, Renditefilter, Steuer, Zeithorizont und Liquiditätsannahmen ändern. Die Startwerte sind:
 
-| Einstellung | Standard |
-|---|---:|
-| Maximal verschiedene Items | 6 |
-| Maximaler Budgetanteil je Item | 100 % |
-| Zeithorizont | 1 Stunde |
-| Angenommener Anteil am Durchsatz | 1 % |
-| Mindest-Tagesdurchsatz je benötigter Handelsseite | 1.000 Items |
-| Netto-ROI | 2–50 % |
-| Maximaler Orderdruck | 6 Stunden |
-| Bazaar-Verkaufssteuer | 1,25 % |
+| Einstellung | Alle Flips | Investitionsplan |
+|---|---:|---:|
+| Maximal verschiedene Items im Plan | — | 12 |
+| Maximaler Budgetanteil je Item im Plan | — | 100 % |
+| Zeithorizont | 1 Stunde | 24 Stunden |
+| Angenommener Anteil am Durchsatz | 1 % | 1 % |
+| Mindest-Tagesdurchsatz je benötigter Handelsseite | 1.000 Items | 1.000 Items |
+| Netto-ROI | 2–50 % | 2–50 % |
+| Maximaler Orderdruck | 6 Stunden | 6 Stunden |
+| Bazaar-Verkaufssteuer | 1,25 % | 1,25 % |
 
-Die Filter gelten für beide Reiter; die Verteilungslimits gelten nur für den Investitionsplan. Suche, Merkliste und Sortierung im Scanner ändern den Plan nicht. Einstellungen und Merkliste werden im jeweiligen Browser gespeichert.
+Die Filter werden je Reiter getrennt gespeichert; **Zurücksetzen** betrifft nur die aktive Ansicht. Verteilungslimits gelten nur für den Investitionsplan. Suche, Merkliste und Sortierung im Scanner ändern den Plan nicht. Die Merkliste bleibt gemeinsam gespeichert. Bei der einmaligen Übernahme älterer Einstellungen behält der Scanner sämtliche Filter; der Plan übernimmt nur Budget, Steuer und Verkaufsziel und startet ansonsten mit seinen eigenen Vorgaben.
+
+Freies Budget wird mit den relevanten Modellgrenzen erläutert: Zeit/Marktanteil und Einzelkapazitäten, Item-/Positionslimits, ganze Stücke sowie NPC-Stücklimit oder Zielabwägung. Ein höherer Zeithorizont kann mehr Menge ermöglichen, erhöht aber das Preisänderungsrisiko. Keine Einstellung garantiert vollständige Budgetnutzung oder Ausführung.
 
 ## Datenquellen und API
 
@@ -79,7 +91,9 @@ Für Bazaar-Flips setzt das Modell ein Kaufgebot knapp über das beste bestehend
 
 Die Kaufmenge wird durch Budget, Orderbuch, geschätzten Durchsatz und Zeithorizont begrenzt. Der Durchsatz wird aus den Wochenvolumen abzüglich offener Ordermengen geschätzt. Bei Bazaar-Flips werden Einkauf und Verkauf zeitlich nacheinander modelliert; bei NPC-Flips wird nur die Einkaufsseite für den Marktdurchsatz berücksichtigt.
 
-Der Investitionsplan vergleicht mehrere mögliche Verteilungen. Er ist eine gewinnorientierte Näherung und garantiert weder den mathematisch maximalen Gewinn noch die tatsächliche Ausführung der Orders.
+Der Investitionsplan vergleicht mehrere mögliche Verteilungen nach dem gewählten Ziel. Er ist eine begrenzte Näherung und garantiert weder die mathematisch optimale Verteilung noch die tatsächliche Ausführung der Orders. Bei NPC-Ziel **Wenige Stück bevorzugen** werden vollständige Varianten einschließlich kürzerer Teilpläne nach Nettogewinn / (1 + Gesamtstückzahl / 64) gewichtet. 64 ist lediglich eine Heuristik-Skalierung, keine Stack-/Spielregel; 2.048 ist eine konfigurierbare persönliche Planungsvorgabe, keine NPC-Verkaufsgrenze. Angezeigte Gewinne bleiben tatsächliche Modellgewinne in Coins. Weniger Stücke können weniger Gewinn und freie Coins bedeuten.
+
+Für die Entwicklung steht eine [Offline-Browserumgebung mit kontrollierten Testdaten](test-support/README.md) zur Verfügung.
 
 Eigene laufende Orders, individuelle NPC-Limits und Boni, manuelle Verkaufszeit sowie zukünftige Preisänderungen werden nicht automatisch erfasst. Bereits gebundene Coins sollten deshalb vor der Budgeteingabe abgezogen werden. Items ohne gültige NPC-Preise werden für NPC-Flips ausgeschlossen; fehlende oder mindestens 48 Stunden alte NPC-Daten deaktivieren diese Empfehlungen.
 

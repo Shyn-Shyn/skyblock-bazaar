@@ -1,4 +1,6 @@
 import { analyze, allocate, defaults, settings, parseBudget } from './market.mjs';
+import { profileDefaults, restoreProfiles, saveProfiles } from './profiles.mjs';
+import { detailContext } from './detail-context.mjs';
 
 const $ = selector => document.querySelector(selector);
 const form = $('#filters');
@@ -12,26 +14,27 @@ let favorites = new Set();
 let plan = null;
 let nextLoadAt = Date.now();
 let loadTimer;
-let appliedSettings = { ...defaults };
+let activeView = 'scanner';
+let profiles = restoreProfiles(null, null);
+let results = { scanner: [], plan: [] };
 function persist(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} }
+function readStored(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return {}; } }
+profiles = restoreProfiles(readStored('bazaar-profiles'), readStored('bazaar-settings'));
 try {
-  const raw = JSON.parse(localStorage.getItem('bazaar-settings') || '{}');
-  // Apply the requested simplified strategy once, retaining budget/exit/tax.
-  if (localStorage.getItem('bazaar-strategy-version') !== '3') {
-    const retained = { budget: raw.budget, destination: raw.destination, tax: raw.tax };
-    Object.assign(raw, defaults);
-    for (const [key, value] of Object.entries(retained)) if (value !== undefined) raw[key] = value;
-    localStorage.setItem('bazaar-strategy-version', '3');
-  }
-  const saved = settings(raw);
-  for (const [key, value] of Object.entries(saved)) form.elements[key].value = value;
-  appliedSettings = saved;
   const stored = JSON.parse(localStorage.getItem('bazaar-favorites') || '[]');
   if (Array.isArray(stored)) favorites = new Set(stored.filter(x => typeof x === 'string'));
 } catch {}
 function currentSettings() {
-  if (form.checkValidity()) appliedSettings = settings({ ...Object.fromEntries(new FormData(form)), tax: form.elements.tax.value });
-  return appliedSettings;
+  return profiles[activeView];
+}
+function applyForm() {
+  if (!form.checkValidity()) return false;
+  profiles[activeView] = settings({ ...Object.fromEntries(new FormData(form)), tax: form.elements.tax.value }, profileDefaults[activeView]);
+  return true;
+}
+function fillForm() {
+  for (const [key, value] of Object.entries(currentSettings())) form.elements[key].value = value;
+  validateBudget(true);
 }
 function validateBudget(normalize = false) {
   const value = parseBudget(form.elements.budget.value);
@@ -49,6 +52,12 @@ function npcAvailable() {
 function updateMode() {
   const npc = currentSettings().destination === 'npc';
   form.elements.tax.disabled = npc;
+  $('#filter-heading').textContent = activeView === 'plan' ? 'Filter · Investitionsplan' : 'Filter · Alle Flips';
+  $('#profile-help').textContent = activeView === 'plan'
+    ? 'Eigene Planfilter. Startwerte: 24 Stunden, 1 % Marktanteil, bis zu 12 Items. Längere Planung erhöht das Preisänderungsrisiko.'
+    : 'Eigene Scannerfilter. Jeder Flip zeigt eine alternative Einzelposition mit deinem Scannerbudget.';
+  $('#npc-controls').hidden = activeView !== 'plan' || !npc;
+  $('#bazaar-goal-controls').hidden = activeView !== 'plan' || npc;
   $('#strategy-description').textContent = npc ? 'Buy-Order → NPC-Verkauf' : 'Buy-Order → Bazaar-Sell-Offer';
   $('#sell-heading').textContent = npc ? 'NPC-PREIS' : 'SELL-OFFER';
   $('#market-caption').textContent = npc ? 'Mit NPC-Preis über dem Kaufgebot' : 'Auswertbare Bazaar-Spreads';
@@ -63,6 +72,8 @@ function updateMode() {
     : `${data.itemsError ? `${data.itemsError}. Letzte bekannte Preise werden verwendet. ` : ''}NPC-Basispreise geladen am ${new Date(data.itemsFetchedAt).toLocaleString('de-DE')}. Individuelle Verkaufslimits werden nicht automatisch abgezogen.`;
 }
 function setView(view) {
+  activeView = view;
+  fillForm();
   for (const name of ['scanner', 'plan']) {
     const active = name === view;
     $(`#tab-${name}`).setAttribute('aria-selected', String(active));
@@ -70,44 +81,73 @@ function setView(view) {
     $(`#${name}-panel`).hidden = !active;
   }
   $('#allocation-controls').hidden = view !== 'plan';
+  limit = 50;
+  compute();
 }
 function compute() {
   const s = currentSettings();
-  persist('bazaar-settings', s);
+  persist('bazaar-profiles', saveProfiles(profiles));
   updateMode();
   $('#stat-budget').textContent = compact.format(s.budget);
-  $('#strategy-preset').textContent = `Gewinnorientiert · bis zu ${Math.floor(s.maxPositions)} Items · ${fmt(s.horizon)} Std. · mindestens ${integer.format(s.minDaily)} Items/Tag. Durchsatz und Orderbuch begrenzen die Mengen.`;
+  const goal = activeView === 'scanner' ? 'Alternative Einzel-Flips' : s.destination === 'npc'
+    ? s.npcPreference === 'compact' ? 'Wenige Stück bevorzugen' : 'Nettogewinn'
+    : s.allocationGoal === 'budget' ? 'Budget ausschöpfen' : 'Nettogewinn';
+  $('#strategy-preset').textContent = `${goal} · ${fmt(s.horizon)} Std. · ${fmt(s.share)} % Marktanteil${activeView === 'plan' ? ` · bis zu ${s.maxPositions} Items` : ''}. Durchsatz und Orderbuch begrenzen die Mengen.`;
   if (!data?.products) return;
-  candidates = Object.entries(data.products).map(([id, product]) => analyze({ ...product, product_id: id }, s, data.names?.[id],
-    npcAvailable() ? data.npcPrices?.[id] : undefined)).filter(Boolean);
-  plan = allocate(candidates, s);
+  for (const view of ['scanner', 'plan']) {
+    results[view] = Object.entries(data.products).map(([id, product]) => analyze({ ...product, product_id: id }, profiles[view], data.names?.[id],
+      npcAvailable() ? data.npcPrices?.[id] : undefined)).filter(Boolean);
+  }
+  candidates = results[activeView];
+  plan = allocate(results.plan, profiles.plan);
   renderPlan();
   $('#stat-items').textContent = integer.format(candidates.length);
   render();
+  const eligible = candidates.filter(r => r.eligible);
+  $('#stat-matches').textContent = integer.format(eligible.length);
+  $('#stat-profit').textContent = eligible.length ? compact.format(Math.max(...eligible.map(r => r.total))) : '—';
   if (selected && $('#detail').open) showDetail(selected);
 }
 function renderPlan() {
+  const s = profiles.plan;
   $('#plan-invested').textContent = `${fmt(plan.invested)} Coins`;
   $('#plan-remaining').textContent = `${fmt(plan.remaining)} Coins`;
   $('#plan-profit').textContent = `+${fmt(plan.profit)} Coins`;
+  $('#plan-quantity').textContent = `${integer.format(plan.quantity)} Stück`;
+  $('#plan-goal-description').textContent = s.destination === 'npc'
+    ? s.npcPreference === 'compact'
+      ? 'Wenige Stück bevorzugen: Die Varianten werden nach Nettogewinn / (1 + Gesamtstückzahl / 64) gewichtet. Weniger Verkaufsaufwand kann weniger Coin-Gewinn und freies Budget bedeuten. 64 ist nur eine Heuristik-Skalierung; keine Verkaufszeit wird geschätzt.'
+      : 'NPC-Ziel Nettogewinn: höchster berechneter Nettogewinn unter deinem Gesamtstücklimit.'
+    : s.allocationGoal === 'budget'
+      ? 'Budget ausschöpfen: Die verglichenen Varianten werden zuerst nach eingesetzten Coins, danach nach Nettogewinn gewählt. Dadurch kann der Gewinn geringer sein als beim Gewinnziel.'
+      : 'Nettogewinn: Die verglichenen Varianten werden zuerst nach berechnetem Nettogewinn gewählt. Dafür kann Budget frei bleiben.';
   $('#export-plan').disabled = !plan.positions.length;
   $('#plan-rows').innerHTML = plan.positions.map(r => `<tr>
     <td><button class="item-button" data-detail="${esc(r.id)}">${esc(r.name)}${r.warnings.length ? '<span class="risk-dot" title="Risikohinweise in den Details">◇</span>' : ''}</button></td>
     <td>${integer.format(r.quantity)}</td><td>${fmt(r.buy)}</td><td>${fmt(r.sell)}</td>
     <td>${fmt(r.capital)}<span class="item-id">${fmt(r.allocationPercent)} %</span></td>
     <td class="mint">+${fmt(r.total)}</td><td>${fmt(r.hours)}</td></tr>`).join('');
+  const reasons = [];
+  if (plan.unused > .01) {
+    if (plan.objectiveLeavesCapital) reasons.push(s.destination === 'npc' && s.npcPreference === 'compact'
+      ? 'Das Aufwandziel bevorzugt weniger Stücke gegenüber einer stärker investierten Vergleichsvariante.'
+      : 'Das Gewinnziel bevorzugt mehr Nettogewinn gegenüber einer stärker investierten Vergleichsvariante.');
+    if (s.destination === 'npc' && plan.quantity >= s.maxNpcItems) reasons.push(`NPC-Gesamtstücklimit ${integer.format(s.maxNpcItems)} erreicht.`);
+    if (plan.positionCapActive) reasons.push(`Positionslimit ${s.maxPositions} erreicht; weitere Kandidaten bleiben außerhalb des Plans.`);
+    if (plan.itemCapActive) reasons.push(`Je Item höchstens ${fmt(s.maxAllocation)} % (${fmt(s.budget * s.maxAllocation / 100)} Coins).`);
+    if (plan.modelCapital < s.budget) reasons.push(`Zulässige Einzelkapazitäten zusammen: ${fmt(plan.modelCapital)} Coins bei ${fmt(s.horizon)} Std., ${fmt(s.share)} % Marktanteil und max. ${integer.format(s.maxQuantity)} Stück je Item. Zeithorizont oder Anteil bei Bedarf selbst anpassen.`);
+    reasons.push('Es werden nur bezahlbare ganze Stücke innerhalb aller Grenzen eingeplant; keine Reserve.');
+  }
   $('#plan-summary').textContent = plan.positions.length
-    ? `${plan.positions.length} Items · ${fmt(plan.invested / currentSettings().budget * 100)} % deines Budgets zugeteilt · ${fmt(plan.roi)} % Netto-ROI. ${plan.unused > .01 ? `${fmt(plan.unused)} Coins noch nicht zugeteilt: Durchsatz, Positionslimits oder ganze Stückzahlen begrenzen den Plan. Erhöhe bei Bedarf Zeithorizont oder Positionslimits.` : 'Budget vollständig zugeteilt.'} Stand: ${new Date(data.lastUpdated).toLocaleTimeString('de-DE')}.`
-    : 'Keine Verteilung innerhalb deiner Vorgaben möglich. Budget, Anteil je Item oder Strategiefilter anpassen. Es wird keine Reserve abgezogen.';
+    ? `${plan.positions.length} Items · ${fmt(plan.invested / s.budget * 100)} % deines Planbudgets zugeteilt · ${integer.format(plan.quantity)} Stück gesamt · ${fmt(plan.roi)} % Netto-ROI. ${plan.unused > .01 ? `${fmt(plan.unused)} Coins frei. ${reasons.join(' ')}` : 'Budget vollständig zugeteilt.'} Stand: ${new Date(data.lastUpdated).toLocaleTimeString('de-DE')}.`
+    : 'Keine passenden, bezahlbaren Plan-Kandidaten innerhalb deiner Filter und Mengenlimits. Planfilter, Budget oder Anteil je Item prüfen. Es wird keine Reserve abgezogen.';
 }
 function render() {
   const query = $('#search').value.toLocaleLowerCase();
-  const eligible = candidates.filter(r => r.eligible);
+  const eligible = results.scanner.filter(r => r.eligible);
   shown = eligible.filter(r => (!$('#watch-only').checked || favorites.has(r.id)) &&
     `${r.name} ${r.id}`.toLocaleLowerCase().includes(query))
     .sort((a, b) => b[$('#sort').value] - a[$('#sort').value] || a.id.localeCompare(b.id));
-  $('#stat-matches').textContent = integer.format(eligible.length);
-  $('#stat-profit').textContent = eligible.length ? compact.format(Math.max(...eligible.map(r => r.total))) : '—';
   $('#count').textContent = integer.format(shown.length);
   $('#export').disabled = !shown.length;
   $('#rows').innerHTML = shown.slice(0, limit).map(r => `<tr>
@@ -128,16 +168,18 @@ function showDetail(id) {
   const r = candidates.find(r => r.id === id);
   selected = id;
   if (!r) { $('#detail-content').textContent = 'Dieses Item hat im aktuellen Datenstand kein nutzbares Orderbuch.'; return; }
+  const planned = activeView === 'plan' ? plan?.positions.find(p => p.id === id) : null;
+  const context = detailContext(activeView, r, planned);
+  const { displayed } = context;
   const stats = [
     ['Deine Buy-Order', `${fmt(r.buy)} Coins`], [r.destination === 'npc' ? 'NPC-Basispreis' : 'Dein Sell-Offer', `${fmt(r.sell)} Coins`],
-    ['Netto je Item', `${fmt(r.profit)} Coins`], ['Positionsgröße (Modell)', `${integer.format(r.quantity)} Items`],
-    ['Gebundenes Budget', `${fmt(r.capital)} Coins`], ['Positionsgewinn (Modell)', `${fmt(r.total)} Coins`],
+    ['Netto je Item', `${fmt(r.profit)} Coins`], [context.quantityLabel, `${integer.format(displayed.quantity)} Items`],
+    [context.capitalLabel, `${fmt(displayed.capital)} Coins`], [context.profitLabel, `${fmt(displayed.total)} Coins`],
   ];
-  const planned = plan?.positions.find(p => p.id === id);
   $('#detail-content').innerHTML = `<h2>${esc(r.name)}</h2><span class="item-id">${esc(r.id)}</span>
-    <p class="detail-note">${planned ? `Im gemeinsamen Plan: ${integer.format(planned.quantity)} Items · ${fmt(planned.capital)} Coins Einsatz · ${fmt(planned.total)} Coins Modellgewinn.` : 'Dieses Item ist aktuell nicht im gemeinsamen Investitionsplan.'} Die Kennzahlen darunter zeigen die alternative Einzelposition mit vollem Budget.</p>
+    <p class="detail-note">${context.planned ? `Investitionsplan: ${integer.format(planned.quantity)} Items · ${fmt(planned.capital)} Coins Einsatz · ${fmt(planned.total)} Coins Modellgewinn. Kapazitätsalternative mit dem gesamten Planbudget: ${integer.format(r.quantity)} Items / ${fmt(r.capital)} Coins; sie ist keine zusätzliche Kaufempfehlung.` : context.note}</p>
     <div class="detail-stats">${stats.map(([label, value]) => `<div class="detail-stat"><span>${label}</span><strong>${value}</strong></div>`).join('')}</div>
-    <p class="detail-note">Verkaufsziel: ${r.destination === 'npc' ? 'NPC · keine Bazaar-Steuer' : 'Bazaar-Sell-Offer'}<br>Brutto-Spread: ${fmt(r.spread)} Coins · Netto-ROI: ${fmt(r.roi)} % · Modellzeit ${r.destination === 'npc' ? 'für den Einkauf' : 'für beide Schritte'}: ${r.hours === null ? '—' : `${fmt(r.hours)} Std.`}<br>
+    <p class="detail-note">Verkaufsziel: ${r.destination === 'npc' ? 'NPC · keine Bazaar-Steuer' : 'Bazaar-Sell-Offer'}<br>Brutto-Spread: ${fmt(r.spread)} Coins · Netto-ROI: ${fmt(r.roi)} % · Modellzeit ${r.destination === 'npc' ? 'für den Einkauf' : 'für beide Schritte'}: ${displayed.hours === null ? '—' : `${fmt(displayed.hours)} Std.`}<br>
     Geschätzter Tagesdurchsatz: Einkauf ${integer.format(r.buyWeekly / 7)}${r.destination === 'npc' ? ' Items · NPC-Verkauf ohne Markt-Warteschlange' : ` / Verkauf ${integer.format(r.sellWeekly / 7)} Items`}.<br>
     Offene Kauforders: ${integer.format(r.buyOrders)} (${integer.format(r.buyOpen)} Items) · Offene Verkaufsangebote: ${integer.format(r.sellOrders)} (${integer.format(r.sellOpen)} Items).<br>
     Orderdruck am besten Preis: ${fmt(r.pressure)} Std. · Warteschlange vor deinen Preisen: ${integer.format(r.bidQueue)} / ${integer.format(r.askQueue)} Items.</p>
@@ -198,10 +240,10 @@ for (const name of ['scanner', 'plan']) {
     setView(target); $(`#tab-${target}`).focus();
   });
 }
-form.addEventListener('input', () => { validateBudget(); if (form.checkValidity()) { limit = 50; compute(); } });
+form.addEventListener('input', () => { validateBudget(); if (applyForm()) { limit = 50; compute(); } });
 form.elements.budget.addEventListener('blur', () => validateBudget(true));
-form.elements.budget.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); validateBudget(true); compute(); } });
-$('#reset').addEventListener('click', () => { for (const [key, value] of Object.entries(defaults)) form.elements[key].value = value; validateBudget(true); limit = 50; compute(); });
+form.elements.budget.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); validateBudget(true); applyForm(); compute(); } });
+$('#reset').addEventListener('click', () => { profiles[activeView] = { ...profileDefaults[activeView] }; fillForm(); limit = 50; compute(); });
 for (const selector of ['#search', '#sort', '#watch-only']) $(selector).addEventListener('input', () => { limit = 50; render(); });
 $('#more').addEventListener('click', () => { limit += 50; render(); });
 $('#refresh').addEventListener('click', load);
@@ -231,7 +273,7 @@ function exportCsv(items, fields, filename) {
 $('#export').addEventListener('click', () => exportCsv(shown, ['id', 'name', 'destination', 'buy', 'sell', 'profit', 'roi', 'daily', 'quantity', 'capital', 'total', 'pressure'], 'bazaar'));
 $('#export-plan').addEventListener('click', () => exportCsv(plan.positions.map(r => ({ ...r, apiTimestamp: data.lastUpdated })),
   ['id', 'name', 'destination', 'quantity', 'buy', 'sell', 'capital', 'allocationPercent', 'total', 'hours', 'apiTimestamp'], 'bazaar-investitionsplan'));
-validateBudget(true);
+fillForm();
 compute();
 void load();
 setInterval(updateStatus, 1000);
