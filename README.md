@@ -1,179 +1,201 @@
-# Skyblock Exchange – Bazaar Flipper
+# Skyblock Exchange
 
-Eine selbst gehostete Web-App für **Hypixel SkyBlock**. Sie sucht Kandidaten für **Buy-Order → Sell-Offer** und berücksichtigt Nettomarge, Budget, offene Ordermengen und geschätzten Durchsatz. Die App zeigt Vorschläge; Trades führst du selbst im Spiel aus.
+Skyblock Exchange ist eine selbst gehostete Web-App für **Hypixel SkyBlock**, die Bazaar-Flips findet und aus einem vorgegebenen Budget einen Investitionsplan erstellt. Sie berücksichtigt Preisspreads, Verkaufssteuer, offene Ordermengen und den geschätzten Handelsdurchsatz.
 
-Version 1.0: lokal mit `npm start` oder als Docker-Container. Für die Installation über Portainer siehe [PORTAINER.md](PORTAINER.md). Das App-Icon liegt unter `public/app-icon.png` und ist nach dem Start über `/app-icon.png` erreichbar.
+Die App bietet eine deutschsprachige Weboberfläche im Minecraft-inspirierten Design. Sie empfiehlt Trades; Käufe und Verkäufe führst du selbst im Spiel aus.
 
-Die Oberfläche hat zwei Reiter: **Alle Flips** (Scanner, standardmäßig geöffnet) und **Investitionsplan** (gemeinsame Budgetverteilung). Die Strategie gilt für beide Reiter, Verteilungslimits werden nur im Plan angezeigt.
+## Funktionen
 
-**Verkaufsziel:** Wähle Bazaar-Sell-Offer oder NPC. Der Einkauf erfolgt in beiden Fällen per Bazaar-Buy-Order, nicht per Sofortkauf. NPC-Flips nutzen `npc_sell_price` aus den offiziellen Itemdaten, ohne Bazaar-Verkaufssteuer. Nur der Einkaufsdurchsatz und die Kauf-Warteschlange begrenzen ihre Modellmenge und Modellzeit. Manuelle Verkaufszeit, individuelle Boni und persönliche NPC-Verkaufslimits werden nicht modelliert. Items ohne gültigen NPC-Preis werden ausgeschlossen. Die NPC-Preise werden täglich aktualisiert; fehlt ein Snapshot oder ist er mindestens 48 Stunden alt, werden NPC-Flips ausgeblendet. Beide CSV-Exporte enthalten das Verkaufsziel.
+### Alle Flips
 
-## Schnellstart auf deinem Heimserver
+Der Scanner zeigt passende Items mit Kauf- und Verkaufspreisen, Nettogewinn, Rendite, modellierter Kaufmenge und geschätzter Dauer. Suche, Sortierung und Merkliste helfen beim Vergleichen. Ein Klick auf ein Item öffnet Details zum Orderbuch und zur Berechnung. Die gefilterten Ergebnisse lassen sich als CSV exportieren.
 
-Voraussetzungen: Docker Engine mit Docker Compose v2 und Internetzugriff. Keine Datenbank, keine npm-Pakete und kein Hypixel-API-Key erforderlich. Falls Docker noch fehlt, nutze die [offizielle Installation für dein Betriebssystem](https://docs.docker.com/engine/install/).
+Zwei Verkaufsziele stehen zur Auswahl:
 
-1. Kopiere diesen gesamten Projektordner auf den Server, beispielsweise nach `~/skyblock-bazaar`. Alternativ verwende die GitHub-Anleitung weiter unten.
-2. Öffne dort ein Terminal:
+- **Bazaar:** Einkauf per Buy-Order und Verkauf per Sell-Offer. Die eingestellte Verkaufssteuer wird vom Erlös abgezogen.
+- **NPC:** Einkauf per Buy-Order und Verkauf zum NPC-Basispreis aus der Hypixel-API. Es fällt im Modell keine Bazaar-Verkaufssteuer an.
 
-   ```sh
-   cd ~/skyblock-bazaar
-   cp .env.example .env
-   ```
+Der Einkauf erfolgt in beiden Fällen per Buy-Order, nicht als Sofortkauf.
 
-   Unter Windows PowerShell lautet der Kopierbefehl `Copy-Item .env.example .env`.
+### Investitionsplan
 
-3. Öffne `.env` in einem Texteditor und wähle den gewünschten freien Server-Port:
+Budget eingeben, Verkaufsziel auswählen und die vorgeschlagene Aufteilung prüfen. Eingaben wie `1M`, `10M`, `1,5M` oder `500K` werden automatisch als Coins interpretiert.
 
-   ```dotenv
-   APP_PORT=8080
-   BIND_ADDRESS=0.0.0.0
-   REFRESH_SECONDS=60
-   ```
+- Standardmäßig höchstens **sechs verschiedene Items**.
+- Bis zu **100 % des Budgets in einem Item**, sofern die Modellgrenzen das erlauben.
+- Keine eingeplante Reserve. Ganze Stückzahlen, Durchsatz und Positionslimits können Restbeträge verursachen.
+- Vergleich mehrerer Aufteilungen anhand ihres modellierten Nettogewinns.
+- Anzeige von Kaufmengen, Einsatz, Budgetanteilen, Nettogewinn und geschätzter Dauer.
+- Eigener CSV-Export für den Plan.
 
-   `APP_PORT` ist der von außen erreichbare Port. Intern lauscht der Container auf Port 3000. `BIND_ADDRESS=0.0.0.0` macht die App über alle IPv4-Netzwerkschnittstellen erreichbar. Für ausschließlich lokalen Zugriff auf dem Server wähle `127.0.0.1`.
+Unter **Strategie anpassen** lassen sich unter anderem Itemanzahl, Budgetanteil je Item, Renditefilter, Steuer, Zeithorizont und Liquiditätsannahmen ändern. Die Startwerte sind:
 
-4. Baue und starte den Container:
+| Einstellung | Standard |
+|---|---:|
+| Maximal verschiedene Items | 6 |
+| Maximaler Budgetanteil je Item | 100 % |
+| Zeithorizont | 1 Stunde |
+| Angenommener Anteil am Durchsatz | 1 % |
+| Mindest-Tagesdurchsatz je benötigter Handelsseite | 1.000 Items |
+| Netto-ROI | 2–50 % |
+| Maximaler Orderdruck | 6 Stunden |
+| Bazaar-Verkaufssteuer | 1,25 % |
 
-   ```sh
-   docker compose up -d --build
-   docker compose ps
-   ```
+Die Filter gelten für beide Reiter; die Verteilungslimits gelten nur für den Investitionsplan. Suche, Merkliste und Sortierung im Scanner ändern den Plan nicht. Einstellungen und Merkliste werden im jeweiligen Browser gespeichert.
 
-5. Öffne im Browser `http://DEINE-SERVER-IP:8080`, beispielsweise `http://192.168.178.50:8080`. Die IP ersetzt du durch die Adresse deines Heimservers. Erlaube den gewählten TCP-Port in dessen Firewall für dein Heimnetz, falls erforderlich.
-6. Setze in der Oberfläche dein Budget und deine tatsächliche Verkaufssteuer. Klicke einen Itemnamen an, um beide Orderbücher und die Berechnung anzusehen.
+## Datenquellen und API
 
-`restart: unless-stopped` startet den Container nach einem Neustart des Docker-Dienstes wieder. Ein Docker-Volume ist nicht nötig: Filter und Merkliste liegen im jeweiligen Browser; der aktuelle Markt-Snapshot liegt im Arbeitsspeicher des Servers. Es gibt keine gespeicherte Preishistorie.
+Die App verwendet die öffentlichen Endpunkte der [Hypixel-API](https://api.hypixel.net/):
 
-Die App hat keinen Login. Für Zugriff von außerhalb deines Heimnetzes kannst du einen vorhandenen VPN-Zugang verwenden. Öffentliches Hosting erfordert eine eigene Zugriffsregelung und HTTPS am Reverse Proxy. GitHub Pages kann diesen Node-Server nicht ausführen.
+| Endpunkt | Verwendung |
+|---|---|
+| [`GET /v2/skyblock/bazaar`](https://api.hypixel.net/v2/skyblock/bazaar) | Preise, Orderbuch, offene Mengen und Handelsvolumen |
+| [`GET /v2/resources/skyblock/items`](https://api.hypixel.net/v2/resources/skyblock/items) | Itemnamen und NPC-Basisverkaufspreise (`npc_sell_price`) |
 
-## Code auf GitHub ablegen
+Für diese App ist kein Hypixel-API-Key erforderlich. Die Abrufe erfolgen zentral über den App-Server; mehrere Browser teilen sich dessen Cache.
 
-1. Erstelle auf GitHub ein neues leeres Repository, zum Beispiel `skyblock-bazaar`. Lass automatische README-, Lizenz- und `.gitignore`-Erstellung abgewählt, weil der Projektordner schon Dateien enthält.
-2. Öffne PowerShell in diesem Projektordner. Der ursprüngliche Arbeitsordner ist bereits ein Git-Repository. Nach dem Entpacken des ZIP-Archivs führe zuerst `git init` aus. Prüfe dann `git status`:
+- Bazaar-Daten werden standardmäßig alle **60 Sekunden** abgefragt. Das Intervall lässt sich erhöhen.
+- Itemnamen und NPC-Preise werden nach erfolgreichem Abruf täglich aktualisiert.
+- Bei API-Fehlern verlängert sich die Wartezeit automatisch; ein `Retry-After` wird berücksichtigt.
+- Die Oberfläche zeigt Datenstand, Aktualisierungs-Countdown und Warnungen bei veralteten Daten.
+- Der manuelle Aktualisieren-Button umgeht das serverseitige Abfrageintervall nicht.
 
-   ```sh
-   git add .
-   git commit -m "Add self-hosted SkyBlock Bazaar flipper"
-   git branch -M main
-   git remote add origin https://github.com/DEIN-NAME/skyblock-bazaar.git
-   git push -u origin main
-   ```
+Das gewählte Intervall ist eine Einstellung der App, keine von Hypixel garantierte Abfragerate.
 
-   Ersetze `DEIN-NAME` durch deinen GitHub-Namen. Falls `origin` bereits existiert, prüfe `git remote -v` und verwende das passende Repository, statt erneut `remote add` auszuführen. GitHub kann eine Anmeldung verlangen. `.env` wird durch `.gitignore` ausgeschlossen.
+Die App stellt außerdem folgende HTTP-Endpunkte bereit:
 
-3. Auf dem Heimserver:
+| Pfad | Zweck |
+|---|---|
+| `/` | Weboberfläche |
+| `/api/bazaar` | Zwischengespeicherte Marktdaten und Statusinformationen |
+| `/healthz` | Erreichbarkeitsprüfung für den Docker-Healthcheck |
+| `/app-icon.png` | App-Icon für Server-Dashboards |
 
-   ```sh
-   git clone https://github.com/DEIN-NAME/skyblock-bazaar.git
-   cd skyblock-bazaar
-   cp .env.example .env
-   docker compose up -d --build
-   ```
-
-   Bei einem privaten Repository benötigt auch der Server eine passende GitHub-Anmeldung.
-
-4. Nach späteren Codeänderungen und einem Push:
-
-   ```sh
-   git pull --ff-only
-   docker compose up -d --build
-   ```
-
-## Lokal ohne Docker
-
-Mit Node.js 22 oder neuer, empfohlen Node.js 24:
-
-```sh
-npm test
-npm start
-```
-
-Anschließend `http://localhost:3000` öffnen. `npm install` ist nicht notwendig: Die Anwendung verwendet nur Node-Standardmodule. `npm run dev` startet mit automatischem Neustart bei Dateiänderungen.
-
-## Bedienung
-
-- **Gesamtbudget:** Der Investitionsplan verteilt dieses Budget gemeinsam auf mehrere Items, ohne Reserve. Eingaben wie `1M`, `10M`, `1,5M`, `1.5M` oder `500K` werden unterstützt und beim Verlassen des Feldes ausgeschrieben. Die Scanner-Tabelle zeigt weiterhin alternative Einzelpositionen mit dem vollen Budget.
-- **Investitionsplan:** Das gesamte Budget steht zur Verteilung bereit. Standardmäßig sind bis zu 100 % je Item und maximal sechs verschiedene Items erlaubt; engere Limits sind einstellbar. Alte Reserve-Einstellungen werden entfernt und die bisherigen Verteilungsgrenzen einmalig auf diese neuen Standardwerte gesetzt. Ganze Stückzahlen, Durchsatz und Limits können trotzdem Restbeträge verursachen; diese werden ausdrücklich als nicht zugeteilt angezeigt. Der Plan enthält Kaufmengen, Preise, Einsatz, Budgetanteil, Modellgewinn und Modellzeit sowie einen eigenen CSV-Export.
-- **Verteilung:** Mehrere greedy berechnete Varianten nach Positionsgewinn, Rendite und Budgetnutzung werden verglichen, zusätzlich alternative Startpositionen aus den jeweils acht besten Gewinn- und Renditekandidaten. Gewählt wird der höchste modellierte Nettogewinn, bei Gleichstand die Variante mit weniger Items. Durchsatz, Orderdruck und Mengenlimits gelten für alle Varianten. Das ist eine begrenzte Suche, keine Garantie für ein globales Optimum oder tatsächliche Gewinne.
-- **Einfache Bedienung:** Budget und Verkaufsziel sind direkt sichtbar. Alle weiteren veränderbaren Parameter liegen unter „Strategie anpassen“. Neue Startwerte: maximal sechs Items, bis zu 100 % je Item, 1 Stunde, 1 % geschätzter Marktanteil, mindestens 1.000 Items Tagesdurchsatz pro benötigter Seite, 2–50 % Netto-ROI, höchstens 6 Stunden Orderdruck. Bei der einmaligen Umstellung bleiben Budget, Verkaufsziel und persönliche Steuer erhalten. Diese Voreinstellung ist nicht empirisch als optimal validiert.
-- **Plan verwenden:** Buy-Orders mit den vorgeschlagenen Mengen setzen; gefüllte Mengen anschließend per Sell-Offer verkaufen. Vor neuen Plänen bereits gebundene Coins vom Budget abziehen. Eigene laufende Orders werden nicht automatisch erkannt. Die Planpositionen werden als parallel betreut angenommen.
-- **Planaktualisierung:** Live-Daten und Strategiefilter berechnen den Plan neu. Suche, Merkliste und Sortierung beeinflussen nur den Scanner. Bei veralteten Daten gilt die Warnung oben auch für den Plan.
-- **Netto-ROI / Profit je Item:** Nach der eingestellten Verkaufssteuer. 1,25 % ist nur der Startwert; individuelle Boni oder Events musst du berücksichtigen.
-- **Tagesdurchsatz:** Mindestwert auf beiden Seiten. Dieser Filter schließt große Spreads mit wenig Handel aus.
-- **Zeithorizont und Marktanteil:** Modellannahmen zur sinnvollen Menge. Standard: eine Stunde und 1 % des geschätzten Durchsatzes.
-- **Preisverbesserung:** Standardmäßig Kaufgebot +0,1 und Verkaufsangebot −0,1 Coins. Dieser technische Wert ist fest vorbelegt und nicht mehr Teil der sichtbaren Filter.
-- **Max. Orderdruck:** Filter für große vorhandene Mengen an den beiden besten Preisen, gemessen relativ zum stündlichen Durchsatz.
-- **Max. Netto-ROI:** Standardmäßig 50 %, um extreme Spreads auszufiltern.
-- **Empfehlung:** Positionsgewinn, abgewertet um Orderdruck. Andere Sortierungen sind wählbar.
-- **Merkliste:** Stern anklicken und „Merkliste“ aktivieren. Gespeicherte Items erscheinen weiterhin nur, wenn sie die aktuellen Filter erfüllen.
-- **CSV:** Exportiert alle aktuell gefilterten Treffer, einschließlich noch nicht eingeblendeter Zeilen. Semikolon als Trennzeichen, UTF-8 mit BOM, Zahlen mit Dezimalpunkt.
+Der Healthcheck prüft die App, nicht die Verfügbarkeit oder Aktualität der Hypixel-Daten. Ohne erfolgreichen Markt-Snapshot antwortet `/api/bazaar` mit HTTP 503.
 
 ## Berechnungsmodell
 
-Die Preisstufen werden nach Preis sortiert; ungültige oder leere Seiten werden verworfen. API-Feldnamen beziehen sich auf Soforttransaktionen: `sell_summary` enthält die Kaufgebote, `buy_summary` die Verkaufsangebote.
+Für Bazaar-Flips setzt das Modell ein Kaufgebot knapp über das beste bestehende Gebot und ein Verkaufsangebot knapp unter das günstigste Angebot. Der Nettogewinn berücksichtigt die konfigurierte Verkaufssteuer. Bei NPC-Flips ersetzt der feste NPC-Basispreis das Verkaufsangebot.
 
-```text
-Einkauf = höchstes Kaufgebot + Preisverbesserung
-Verkauf = niedrigstes Verkaufsangebot − Preisverbesserung
-Netto je Item = Verkauf × (1 − Steuer/100) − Einkauf
-ROI (%) = Netto je Item / Einkauf × 100
+Die Kaufmenge wird durch Budget, Orderbuch, geschätzten Durchsatz und Zeithorizont begrenzt. Der Durchsatz wird aus den Wochenvolumen abzüglich offener Ordermengen geschätzt. Bei Bazaar-Flips werden Einkauf und Verkauf zeitlich nacheinander modelliert; bei NPC-Flips wird nur die Einkaufsseite für den Marktdurchsatz berücksichtigt.
 
-Einkaufsfluss/Stunde = max(0, sellMovingWeek − sellVolume) / 168
-Verkaufsfluss/Stunde = max(0, buyMovingWeek − buyVolume) / 168
-Zyklusrate = 1 / (1/Einkaufsfluss + 1/Verkaufsfluss)
+Der Investitionsplan vergleicht mehrere mögliche Verteilungen. Er ist eine gewinnorientierte Näherung und garantiert weder den mathematisch maximalen Gewinn noch die tatsächliche Ausführung der Orders.
 
-Wartezeit = sichtbare Menge vor Kaufpreis / Einkaufsfluss
-          + sichtbare Menge vor Verkaufspreis / Verkaufsfluss
-Flusslimit = Zyklusrate × Marktanteil/100 × max(0, Zeithorizont − Wartezeit)
-Menge = floor(min(Budget/Einkauf, Mengenlimit, Flusslimit))
-Positionsgewinn = Menge × Netto je Item
+Eigene laufende Orders, individuelle NPC-Limits und Boni, manuelle Verkaufszeit sowie zukünftige Preisänderungen werden nicht automatisch erfasst. Bereits gebundene Coins sollten deshalb vor der Budgeteingabe abgezogen werden. Items ohne gültige NPC-Preise werden für NPC-Flips ausgeschlossen; fehlende oder mindestens 48 Stunden alte NPC-Daten deaktivieren diese Empfehlungen.
 
-Orderdruck = Menge am besten Gebot / Einkaufsfluss
-           + Menge am besten Angebot / Verkaufsfluss
-Score = max(0, Positionsgewinn) / (1 + ln(1 + Orderdruck))
-Bei ROI > 100 %: Score zusätzlich / 3
+## Installation mit Docker Compose
+
+Voraussetzungen sind Docker Engine mit Docker Compose v2, ein freier Server-Port und ausgehender HTTPS-Zugriff auf die Hypixel-API. Eine Datenbank oder ein persistentes Volume ist nicht nötig.
+
+Erstelle einen Ordner für die App und darin eine Datei `compose.yaml` mit folgendem Inhalt:
+
+```yaml
+services:
+  bazaar:
+    image: ghcr.io/shyn-shyn/skyblock-bazaar:latest
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      REFRESH_SECONDS: "60"
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 ```
 
-Bei fehlendem Durchsatz ist die Positionsgröße null. Die beiden Handelsschritte werden zeitlich nacheinander modelliert. Das Budget wird nicht innerhalb des Zeithorizonts mehrfach wiederverwendet.
-
-**Grenzen:** Die Volumenfelder und die begrenzte Orderbuchansicht liefern keine individuellen Ausführungszeiten. Gleichmäßiger Durchsatz und Marktanteil sind Annahmen. Neue konkurrierende Orders, Kursschwankungen, eventuelle Zusatzkosten und Stornierungen können das Ergebnis verschlechtern. Das Ranking ist eine transparente Heuristik, keine nachgewiesen optimale Handelsstrategie. Es gibt keine automatische Trade-Ausführung.
-
-## Daten und Betrieb
-
-Quellen:
-
-- [Offizielle Hypixel-API-Dokumentation](https://api.hypixel.net/)
-- [Bazaar-Endpunkt](https://api.hypixel.net/v2/skyblock/bazaar)
-- [Itemnamen](https://api.hypixel.net/v2/resources/skyblock/items)
-
-Der Server fragt den Bazaar automatisch im Abstand von mindestens 60 Sekunden ab. Gleichzeitige Abrufe werden zusammengefasst. Der Aktualisieren-Button ruft den Server-Cache ab und umgeht dessen Abfrageintervall nicht. Nach Fehlern verdoppelt sich die Wartezeit bis maximal 15 Minuten; ein längeres `Retry-After` wird ebenfalls respektiert. Nach erfolgreichem Abruf gilt wieder das normale Intervall. Die Oberfläche orientiert sich am nächsten Serverabruf und zeigt einen Countdown. Das ist ein gewähltes vorsichtiges Intervall, keine von Hypixel zugesicherte Abfragerate. Itemnamen und NPC-Preise werden einmal täglich aktualisiert.
-
-Anfragen an Hypixel laufen nach 15 Sekunden ab. Bei Fehlern bleibt der letzte Snapshot mit Warnung erhalten. Ohne Snapshot liefert `/api/bazaar` HTTP 503. Daten werden nach mehr als drei Abrufintervallen, mindestens jedoch 180 Sekunden, als veraltet markiert. `/healthz` prüft die Erreichbarkeit der App, nicht die Aktualität der externen API.
+Führe im Ordner mit dieser Datei aus:
 
 ```sh
+docker compose pull
+docker compose up -d
+```
+
+Die App ist anschließend unter **`http://DEINE-SERVER-IP:3000`** erreichbar. Das Image wird für Linux mit AMD64 und ARM64 bereitgestellt.
+
+Bei einem belegten Port ändere nur die linke Zahl, beispielsweise auf `"8090:3000"`. Die Browser-Adresse lautet dann `http://DEINE-SERVER-IP:8090`.
+
+### Installation über Portainer
+
+Wähle deine Docker-Standalone-Umgebung und öffne **Stacks → Add stack**. Vergib einen Namen wie `skyblock-exchange`, füge die obige Compose-Konfiguration im **Web editor** ein und klicke auf **Deploy the stack**.
+
+Das Image muss öffentlich lesbar sein oder Portainer muss über passende Registry-Zugangsdaten für `ghcr.io` verfügen. Ein lokaler Image-Build auf dem Server ist für diese Installation nicht erforderlich.
+
+### Installation mit Docker ohne Compose
+
+```sh
+docker run -d \
+  --name skyblock-exchange \
+  --restart unless-stopped \
+  --init \
+  --read-only \
+  --cap-drop ALL \
+  --security-opt no-new-privileges:true \
+  --log-opt max-size=10m \
+  --log-opt max-file=3 \
+  -p 3000:3000 \
+  -e REFRESH_SECONDS=60 \
+  ghcr.io/shyn-shyn/skyblock-bazaar:latest
+```
+
+Compose, Portainer und `docker run` sind alternative Installationswege. Für dieselbe Instanz nur einen davon verwenden.
+
+### Optional: Image aus dem Quellcode bauen
+
+Im Projektverzeichnis mit dem Dockerfile:
+
+```sh
+docker build -t skyblock-exchange:local .
+```
+
+Verwende anschließend `skyblock-exchange:local` statt des GHCR-Images in deiner Konfiguration. Die im Repository enthaltene `compose.yaml` ist eine Alternative mit lokalem Build; sie startet mit `docker compose up -d --build` und verwendet standardmäßig Server-Port 8080.
+
+## Konfiguration und Betrieb
+
+| Variable | Standard | Bedeutung |
+|---|---|---|
+| `REFRESH_SECONDS` | `60` | Bazaar-Abfrageintervall in Sekunden; mindestens 60 |
+| `PORT` | `3000` | Interner HTTP-Port; bei Änderung auch Portzuordnung und Healthcheck anpassen |
+| `HOST` | `0.0.0.0` | Adresse, auf der der Server im Container lauscht |
+
+Marktdaten liegen im Arbeitsspeicher und werden nach einem Neustart neu geladen. Es gibt keine gespeicherte Preishistorie. Filter und Merkliste liegen im Browserspeicher und werden nicht zwischen Geräten oder unterschiedlichen App-Adressen synchronisiert.
+
+Für eine Installation mit dem obigen Compose-Beispiel:
+
+```sh
+# Status und Logs
+docker compose ps
 docker compose logs --tail=100 -f
-docker compose restart
+
+# Neue Image-Version herunterladen und Container aktualisieren
+docker compose pull
+docker compose up -d
+
+# Installation stoppen und Container entfernen
 docker compose down
 ```
 
-**Fehlerbehebung:**
+Bei Portainer den Stack aktualisieren und das erneute Herunterladen des Images aktivieren. Ein einfacher Container-Neustart übernimmt kein neues Image. Neben `latest` stehen die vom Build veröffentlichten `sha-<Commit-ID>`-Tags zur Auswahl einer bestimmten Version bereit.
 
-- Port belegt: `APP_PORT` ändern und `docker compose up -d` ausführen.
-- App nur am Server erreichbar: Server-IP, `BIND_ADDRESS` und Firewall prüfen.
-- Keine Marktdaten: Container-Logs prüfen; der Server benötigt ausgehenden HTTPS-Zugriff auf `api.hypixel.net`. Bei Hypixel-Störungen warten.
-- Keine Kandidaten: Suche leeren, Merkliste deaktivieren, Filter zurücksetzen oder Budget/Zeithorizont erhöhen.
+Für eine Dashboard-Kachel kann `http://DEINE-SERVER-IP:3000/app-icon.png` als Icon-URL verwendet werden.
 
-## Projektstruktur
+Die App selbst stellt HTTP bereit und besitzt keinen eigenen Login. HTTPS und gegebenenfalls Zugriffsschutz können über einen Reverse Proxy oder Cloudflare Tunnel mit Access vorgeschaltet werden.
 
-```text
-server.mjs           HTTP-Server, Hypixel-Abrufe, Cache
-public/market.mjs    Berechnung und Filter
-public/app.mjs       UI, Merkliste und CSV
-public/index.html   Oberfläche
-public/style.css    Responsive Gestaltung
-test/market.test.mjs Berechnungstests
-Dockerfile          Node-24-Container ohne Root-Benutzer
-compose.yaml        Port, Neustart, Healthcheck und Betriebsoptionen
-```
+## Fehlerbehebung
 
-Validiert: Berechnungs- und Verteilungstests, Budget-Kurzschreibweise, Abfragepausen, JavaScript-Syntaxprüfung, erfolgreicher Live-Abruf und lokale Browser-Prüfung. Die Verteilungstests prüfen vollständigen Budgeteinsatz ohne Reserve, Budget- und Itemlimits, Durchsatzgrenzen, ganze Mengen und Rundung. Docker-Dateien und ZIP sind weiterhin ältere, nicht aktualisierte Bereitstellungsstände; für den aktuellen Stand `npm start` verwenden.
+- **Port bereits belegt:** Linke Portnummer der Zuordnung ändern und den Container neu bereitstellen.
+- **Image kann nicht geladen werden:** Image-Pfad, Tag und Registry-Zugriff prüfen.
+- **Keine Marktdaten:** Container-Logs sowie ausgehendes HTTPS und DNS prüfen. Bei Hypixel-Störungen werden vorhandene Daten mit Warnung weiter angezeigt.
+- **Keine passenden Flips:** Filter, Suchbegriff und Merkliste prüfen; gegebenenfalls Budget oder Zeithorizont anpassen.
+
+Skyblock Exchange ist ein unabhängiges Community-Projekt und nicht mit Mojang oder Hypixel verbunden.
