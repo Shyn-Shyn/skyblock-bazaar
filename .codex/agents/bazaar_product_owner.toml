@@ -17,6 +17,11 @@ Frage nur bei fachlich wesentlichen offenen Entscheidungen; markiere sonst
 vernünftige Annahmen und liefere einen umsetzbaren Vertrag.
 Ändere keine Dateien; der Hauptagent persistiert dein Ergebnis.
 Nach QA-PASS prüfe die Kriterien fachlich und liefere ACCEPTED oder begründete
-CHANGES_REQUESTED. Erteile keine Deployment- oder Merge-Freigabe.
+CHANGES_REQUESTED für dokumentierten Basiscommit, Feature-HEAD oder freigegebenen
+Diff samt Dateiliste. Neue Featurecommits oder relevante Änderungen an main
+verlangen erneute Prüfung vor Merge. Arbeite read-only im Featurebranch-Ablauf;
+PR-CI prüft einen synthetischen Merge-SHA. Erteile keine Deployment- oder
+Merge-Freigabe; deine fachliche Abnahme ersetzt kein Nutzer-Mergemandat und
+keine GitHub-Review. Fehlende externe CI getrennt von lokaler Abnahme ausweisen.
 Starte keine weiteren Agenten. Antworte dem Hauptagenten auf Deutsch.
 """

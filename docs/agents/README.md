@@ -27,7 +27,8 @@ und kein OpenAI-API-Key für einen eigenen Orchestrator nötig.
 | `.codex/agents/bazaar_product_owner.toml` | Bazaar-kundiger PO |
 | `.codex/agents/bazaar_developer.toml` | Umsetzung und Fehlerkorrektur |
 | `.codex/agents/bazaar_qa.toml` | unabhängige Prüfung und BUG-Rückgabe |
-| `.codex/agents/bazaar_release.toml` | freigegebenen Stand nach GitHub pushen, CI und veröffentlichtes Image prüfen |
+| `.codex/agents/bazaar_release.toml` | Featurebranch/PR veröffentlichen, PR-CI und nach autorisiertem Merge das Image prüfen |
+| `.github/pull_request_template.md` | Scope, Freigabestand, Prüfbelege und getrenntes Mergemandat |
 | `docs/agents/WORKFLOW.md` | Übergaben, QA-Runden und Fertig-Kriterien |
 | `docs/agents/BAZAAR.md` | Fachwissen, Quellen und Modellgrenzen |
 | `docs/agents/TASK-TEMPLATE.md` | Vertrag und nachvollziehbarer Verlauf |
@@ -41,31 +42,57 @@ des Hauptchats. Die Rollen stellen keine getrennten Sicherheitsumgebungen dar.
 Release läuft nach den anderen Phasen; das Limit von drei gleichzeitig
 geöffneten Subagent-Threads kann bestehen bleiben.
 
-## GitHub-Veröffentlichung und Image-Prüfung
+## Featurebranch, Pull Request und Image
 
-Für einen Release-Auftrag genügt beispielsweise:
+Für neue Features und Fehlerkorrekturen gilt standardmäßig:
 
-> Setze die Änderung nach AGENTS.md um. Nach QA-PASS und PO-Abnahme soll
-> bazaar_release die abgenommenen Änderungen nach origin/main pushen und die
-> Image-Veröffentlichung prüfen.
+1. Hauptagent prüft Arbeitsbaum, Remote und aktuellen `main`-Stand; er erstellt
+   einen kurzlebigen `codex/<thema>`-Branch. Fremde Änderungen bleiben erhalten.
+2. Developer setzt dort den PO-Vertrag um. QA prüft unabhängig; PO nimmt denselben
+   dokumentierten Basis-/Featurestand oder freigegebenen Inhalt/Diff ab.
+3. Release pusht nur freigegebene Commits, erstellt/aktualisiert einen PR nach
+   `main`, hängt ihn an den Chat und prüft die aktuelle PR-CI.
+4. Nur bei konkretem Nutzer-Mergemandat und aktuellen Freigaben/Prüfungen wird
+   zusammengeführt. Danach prüft Release den tatsächlichen main-SHA, dessen
+   erneute CI/Publish und das GHCR-SHA-Image. Abgeschlossenen Branch dann löschen.
 
-Der Hauptagent übergibt Ticket/Vertrag, freigegebenen Inhaltsstand samt Diff
-und Dateiliste, Developer-/QA-Nachweise, PO-Abnahme, Nutzerautorisierung und
-Remote/Zielbranch sowie bekannte GitHub-/Registry-Werkzeuge und Zugänge ohne
-Secrets. Die vollständige Übergabe und Rückgabe
-stehen im Task-Template. Eine read-only Vorprüfung ist auch vor Abnahme möglich.
-Mutierender Release beginnt erst nach den Freigaben für denselben Inhalt.
+Ein dauerhafter `develop`-Branch entfällt. Features werden nicht routinemäßig
+direkt nach `main` gepusht. Eine konkrete Featureanforderung umfasst Branch-Push
+und PR nach QA/PO-Abnahme, sofern du den Scope nicht etwa auf lokale Arbeit
+beschränkst. Dafür ist keine zusätzliche pauschale Bestätigung nötig.
+Ein Merge ist ein eigener Nutzerauftrag; PO-Abnahme oder GitHub-Approval allein
+genügen dafür nicht. Ohne Mergemandat erhältst du den geprüften PR; Merge und
+Image sind `NICHT_BEAUFTRAGT`.
 
-Release schützt fremde Änderungen und prüft alle zu pushenden Commits. Lokale
-Freigabe, Push und CI/Image erhalten getrennte Nachweise. Push auf `main`
-startet die bestehende Pipeline mit Tests, Container-Smoke und amd64/arm64-
-Images. Der konkrete Commit muss im Remote, CI-Lauf und `sha-<vollständiger SHA>`-
-Image übereinstimmen. `latest` allein belegt keine Version.
+Der Hauptagent übergibt Ticket/Vertrag, Basiscommit, Featurebranch/HEAD bzw.
+freigegebenen Diff mit vollständiger Dateiliste, aktuellen Base-main-SHA,
+Developer-/QA-Nachweise, PO-Abnahme, PR-/Mergemandat und Werkzeuge/Zugänge ohne
+Secrets. Task- und PR-Vorlage enthalten die Felder. Eine read-only Vorprüfung
+ist vor Abnahme möglich; mutierender Release erst nach den Freigaben.
 
-Die Zuständigkeit des Release-Agenten endet mit der Prüfung des veröffentlichten
-Images. Fehlt ein nötiger GitHub-/Registry-Zugang, meldet Release diese Phase
-`BLOCKED` mit nächster Aktion; lokale Abnahme bleibt davon getrennt.
-Nicht beauftragte Phasen sind `NICHT_BEAUFTRAGT`.
+PR-CI führt `node scripts/check.mjs`, Dockerbuild und Container-Smoke aus.
+Sie verwendet den synthetischen Merge-SHA und nur Lesezugriff, keine expliziten
+Secrets und keinen Registry-Login. Der Publish-Job ist im PR übersprungen.
+Feature-HEAD, PR-CI-Merge-SHA und späterer tatsächlicher main-SHA sind getrennte
+Prüfstände. Neue Featurecommits oder relevante Base-Änderungen verlangen vor
+Merge erneute Prüfung; ein alter grüner Lauf reicht nicht.
+
+Nach Push auf `main` oder manuellem Dispatch auf `main` wird erneut validiert;
+erst danach veröffentlicht der eigene Publish-Job amd64/arm64-Images mit
+`latest` und `sha-<vollständiger main-SHA>`. Dispatch auf Featurebranches
+validiert nur. Remote-main, CI und Image müssen zusammenpassen; `latest`
+allein belegt keine Version. Release endet bei GitHub-/Image-Prüfung.
+
+Lokale Abnahme, Branch-Push, PR/CI, Merge und main-CI/Image erhalten getrennte
+Status. Fehlendes Docker lokal bleibt eine konkrete Prüflücke, bis passende
+externe PR-CI den Containernachweis liefert. Fehlende notwendige Zugriffe oder
+Prüfungen ergeben `BLOCKED`; nicht beauftragte Phasen `NICHT_BEAUFTRAGT`.
+
+Empfehlung für GitHub-Branchschutz: Pull Requests und erfolgreichen Check
+`Validate application and container` für `main` verlangen, möglichst mit
+aktueller Base. Diese Dateien aktivieren keine Schutzregeln; deren Aktivierung
+muss separat tatsächlich nachgewiesen werden. Ein übersprungener Publish-Job
+ist kein geeigneter Required Check.
 
 Netzwerkanfragen sind auf höchstens 30 Sekunden je Anfrage begrenzt. Registry-
 Abfragen enden insgesamt nach höchstens 120 Sekunden, CI-Warten einschließlich

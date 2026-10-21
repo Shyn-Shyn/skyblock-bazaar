@@ -12,7 +12,21 @@ Node.js >=22, ESM, keine npm-Abhängigkeiten, kein Frontend-Framework oder Build
 - `public/app.mjs`, `index.html`, CSS: UI, LocalStorage, CSV.
 - `test/*.test.mjs`: deterministische Node-Tests ohne Netzwerk.
 - Docker/Portainer: Betrieb; `.github/workflows/publish-image.yml` veröffentlicht
-  Images bei Push auf `main`.
+  nach erfolgreicher Prüfung Images bei Push auf `main`; PRs werden ohne Publish geprüft.
+
+## Branches und Pull Requests
+
+Für Features und Fehlerkorrekturen gilt GitHub Flow: kurzlebiger Branch
+`codex/<thema>` von aktuellem `main`, dann Pull Request nach `main`.
+Kein dauerhafter `develop`-Branch und kein routinemäßiger Feature-Push direkt
+nach `main`. Der Hauptagent prüft vor Änderungen Arbeitsbaum, Remote und
+Remote-main, dokumentiert Basiscommit/Branch und erhält fremde Änderungen.
+Bei schmutzigem oder abweichendem Checkout erst klären, nichts überschreiben.
+Developer arbeitet auf diesem Branch. QA und PO prüfen denselben dokumentierten
+Inhalt (Basis, Feature-HEAD oder Diff mit vollständiger Dateiliste).
+Die konkrete Featureanforderung umfasst im etablierten Ablauf Branch-Push und
+PR-Erstellung nach QA/PO-Abnahme, sofern der Nutzer etwa durch local-only nicht
+einschränkt. Dafür keine zusätzliche pauschale Bestätigung verlangen.
 
 ## Standardablauf bei Entwicklungsanforderungen
 
@@ -35,8 +49,15 @@ Für reine Erklärungen und triviale Dokumentkorrekturen genügt der Hauptagent.
    mit verbleibenden Fehlern und konkretem nächsten Schritt. Kein falsches PASS.
 5. `DONE` erfordert QA-PASS für alle verbindlichen Kriterien und PO-Abnahme.
    Nicht ausgeführte notwendige Prüfungen ergeben `BLOCKED`, niemals PASS.
-6. Bei vorhandenem GitHub-/Image-Veröffentlichungsauftrag übergib den abgenommenen Stand,
-   Nachweise, Autorisierungsumfang und Ziel an `bazaar_release` gemäß Workflow.
+6. Bei vorhandenem GitHub-Auftrag übergib den abgenommenen Feature-Stand,
+   Nachweise und Autorisierungsumfang an `bazaar_release`: Branch pushen,
+   PR nach `main` erstellen/aktualisieren, an den Chat anhängen und aktuelle PR-CI prüfen.
+   Merge nur mit konkreter Nutzerautorisierung sowie aktuellen Freigaben und
+   erfolgreicher PR-CI. PO-Abnahme oder GitHub-Approval allein sind kein Mergemandat.
+   Ohne Mergeauftrag endet die beauftragte Arbeit am prüfbaren PR; Merge/Image
+   sind `NICHT_BEAUFTRAGT`. Neue Commits oder relevante Base-Änderungen verlangen
+   erneute Prüfung vor Merge. Nach autorisiertem Merge tatsächlichen main-SHA,
+   erneute CI/Publish und SHA-Image prüfen; Branch nach Abschluss löschen.
    Lokale Abnahme und Release getrennt dokumentieren; notwendige offene
    Release-Schritte verhindern Gesamt-DONE. Änderungen am abgenommenen Inhalt
    gehen zurück an Developer, unabhängige QA und PO.
@@ -82,8 +103,10 @@ zurück. Kein paralleles Editieren desselben Checkouts. Keine Secrets in Tickets
 Reversible lokale Umsetzung und Fehlerkorrektur im angefragten Scope fortsetzen.
 Push, Merge und Deployment nur im Umfang des Nutzerauftrags; bereits erteilte
 Autorisierung gilt weiter und erfordert keine erneute fachliche Bestätigung.
-Insbesondere löst `main` eine Image-Veröffentlichung aus. `bazaar_release`
-prüft ausschließlich GitHub-Push, CI und veröffentlichtes Image für dieselbe SHA.
+Insbesondere löst `main` nach erfolgreicher Validierung eine Image-Veröffentlichung
+aus. `bazaar_release` prüft ausschließlich Branch/PR/CI und nach beauftragtem
+Merge das veröffentlichte Image für den tatsächlichen main-SHA. PR-CI verwendet
+einen synthetischen Merge-SHA, nicht zwingend den Feature-HEAD oder späteren main-SHA.
 Seine Zuständigkeit endet nach der Image-Prüfung.
 Kein Force-Push oder ungeprüfte/fremde Änderungen veröffentlichen.
 Keine In-Game-Orderausführung hinzufügen,

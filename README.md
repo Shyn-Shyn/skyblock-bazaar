@@ -4,9 +4,12 @@
 
 PO, Developer, unabhängige QA und ein Release-Agent sind im Repository eingerichtet. Öffne das
 Projekt in Codex und nenne deine Anforderung; `AGENTS.md` steuert die Übergaben
-und die Rückgabe von QA-Fehlern an den Developer. Bei beauftragter GitHub-
-Veröffentlichung übernimmt der Release-Agent nach QA-PASS und PO-Abnahme und
-prüft GitHub-Push sowie das veröffentlichte Image für denselben Commit.
+und die Rückgabe von QA-Fehlern an den Developer. Neue Features und Korrekturen
+entstehen auf kurzlebigen `codex/<thema>`-Branches von `main`. Nach QA-PASS und
+PO-Abnahme veröffentlicht der Release-Agent den Branch als Pull Request und
+prüft dessen CI (Tests, Containerbuild und Smoke-Test, ohne Image-Publish).
+Ein Merge benötigt einen konkreten Nutzerauftrag. Danach prüft Release das
+Image für den tatsächlichen main-Commit. Ein dauerhafter `develop` entfällt.
 [Bedienung, Rollen und Ablauf](docs/agents/README.md).
 Lokale Prüfung ohne Installation: `node scripts/check.mjs`.
 

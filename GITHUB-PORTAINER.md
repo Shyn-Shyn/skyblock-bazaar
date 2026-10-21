@@ -6,7 +6,11 @@ Bei GitHub anmelden, https://github.com/new öffnen. Als Repository-Namen `skybl
 
 ## 2. Projekt hochladen
 
-Auf dem PC PowerShell im Projektordner öffnen. Der ursprüngliche Projektordner ist bereits ein Git-Repository ohne Commit oder Remote. Ein frisch entpacktes ZIP zunächst mit `git init` initialisieren.
+Dieser Abschnitt gilt ausschließlich für die erstmalige Befüllung eines neuen,
+leeren Repositorys. Das bestehende Projekt hat bereits Commits und `origin`;
+hier keine Initialisierung oder Direktpush-Ersteinrichtung wiederholen.
+Laufende Entwicklung verwendet Featurebranches und Pull Requests gemäß
+[Teamablauf](docs/agents/README.md). Ein frisch entpacktes ZIP zunächst mit `git init` initialisieren.
 
 ```powershell
 cd "C:\Users\SHYN\Documents\ChatGPT\Minecraft Skyblock"
@@ -30,7 +34,10 @@ Das Repository muss Dockerfile, server.mjs, polling.mjs, package.json, public/, 
 
 ## 3. Automatischer Image-Build
 
-Im Repository auf Actions klicken. Der Workflow „Build and publish Docker image“ startet bei jedem Push auf main; zusätzlich ist ein manueller Start über Run workflow möglich.
+Im Repository auf Actions klicken. Der Workflow „Build and publish Docker image“
+validiert Pull Requests nach main ohne Image-Veröffentlichung. Nach Push auf main
+oder manuellem Start auf main veröffentlicht er erst nach erfolgreicher Validierung.
+Ein manueller Start auf einem Featurebranch validiert nur.
 
 Er führt die Anwendungstests aus, startet einen Testcontainer und veröffentlicht anschließend Linux-Images für amd64 und arm64:
 
@@ -75,13 +82,13 @@ Die tatsächliche Server-IP und gegebenenfalls den anderen Port einsetzen. Nicht
 
 ## 7. Updates
 
-Nach Codeänderungen auf deinem PC:
-
-```powershell
-git add .
-git commit -m "Update Skyblock Exchange"
-git push
-```
+Quellcodeänderungen erfolgen auf einem kurzlebigen `codex/<thema>`-Branch von
+aktuellem `main`, nicht durch routinemäßige Direktpushes nach main. Nach
+unabhängiger QA und PO-Abnahme veröffentlicht der Release-Agent den Branch als
+Pull Request und prüft dessen CI. Ein Merge benötigt konkreten Nutzerauftrag
+und aktuelle Freigaben/Prüfungen. Der tatsächliche main-Commit wird anschließend
+erneut geprüft; erst dann entsteht das Image. Details und Zuständigkeiten:
+[Teamablauf](docs/agents/README.md). Es gibt keinen dauerhaften develop-Branch.
 
 Den grünen GitHub-Workflow abwarten. Dann in Portainer den Stack öffnen → Editor → Update the stack; falls angeboten „Re-pull image“ aktivieren. Ein einfacher Neustart des alten Containers lädt kein neues Image. Updates werden nicht ohne deine Portainer-Aktion installiert.
 
@@ -94,7 +101,9 @@ Für eine feste Version oder ein Rollback statt latest den zugehörigen sha-Tag 
 - address already in use: Server-Port bereits belegt.
 - Container healthy, aber keine Marktdaten: ausgehendes HTTPS/DNS oder Hypixel prüfen. Der Healthcheck prüft nur die App.
 
-Der GitHub-Workflow ist vorbereitet, wurde aber noch nicht in deinem GitHub-Konto ausgeführt. Der erste Push liefert den tatsächlichen Build-Nachweis.
+Maßgeblich ist der tatsächliche grüne CI-/Publish-Lauf des gewünschten main-SHA
+und dessen SHA-Image. Eine lokale Prüfung oder ein grüner PR-Lauf allein belegt
+noch keine Image-Veröffentlichung für den späteren main-Commit.
 
 Offizielle Referenzen:
 - https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images
