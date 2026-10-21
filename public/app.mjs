@@ -1,6 +1,7 @@
-import { analyze, allocate, defaults, settings, parseBudget } from './market.mjs';
-import { profileDefaults, restoreProfiles, saveProfiles } from './profiles.mjs';
+import { analyze, allocate, settings, parseBudget } from './market.mjs';
+import { profileDefaults, restoreProfiles, saveProfiles, overviewSettings } from './profiles.mjs';
 import { detailContext } from './detail-context.mjs';
+import { npcDataAvailable, metadataStatus, nextLoadDelay, mergeApiData } from './data-status.mjs';
 
 const $ = selector => document.querySelector(selector);
 const form = $('#filters');
@@ -10,6 +11,7 @@ const compact = new Intl.NumberFormat('de-DE', { notation: 'compact', maximumFra
 const fmt = n => Number.isFinite(n) ? number.format(n) : '—';
 const esc = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 let data = null, candidates = [], shown = [], limit = 50, loading = false, selected = null;
+let itemsData = null;
 let favorites = new Set();
 let plan = null;
 let nextLoadAt = Date.now();
@@ -17,6 +19,7 @@ let loadTimer;
 let activeView = 'scanner';
 let profiles = restoreProfiles(null, null);
 let results = { scanner: [], plan: [] };
+let lastNpcAvailable = false;
 function persist(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} }
 function readStored(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return {}; } }
 profiles = restoreProfiles(readStored('bazaar-profiles'), readStored('bazaar-settings'));
@@ -28,12 +31,13 @@ function currentSettings() {
   return profiles[activeView];
 }
 function applyForm() {
+  if (activeView !== 'plan') return false;
   if (!form.checkValidity()) return false;
-  profiles[activeView] = settings({ ...Object.fromEntries(new FormData(form)), tax: form.elements.tax.value }, profileDefaults[activeView]);
+  profiles.plan = settings({ ...Object.fromEntries(new FormData(form)), tax: form.elements.tax.value }, profileDefaults.plan);
   return true;
 }
 function fillForm() {
-  for (const [key, value] of Object.entries(currentSettings())) form.elements[key].value = value;
+  for (const [key, value] of Object.entries(profiles.plan)) form.elements[key].value = value;
   validateBudget(true);
 }
 function validateBudget(normalize = false) {
@@ -47,33 +51,32 @@ function validateBudget(normalize = false) {
   return valid;
 }
 function npcAvailable() {
-  return data?.itemsFetchedAt && Date.now() - data.itemsFetchedAt < 48 * 3600000;
+  return npcDataAvailable(itemsData);
 }
 function updateMode() {
   const npc = currentSettings().destination === 'npc';
-  form.elements.tax.disabled = npc;
-  $('#filter-heading').textContent = activeView === 'plan' ? 'Filter · Investitionsplan' : 'Filter · Alle Flips';
-  $('#profile-help').textContent = activeView === 'plan'
-    ? 'Eigene Planfilter. Startwerte: 24 Stunden, 1 % Marktanteil, bis zu 12 Items. Längere Planung erhöht das Preisänderungsrisiko.'
-    : 'Eigene Scannerfilter. Jeder Flip zeigt eine alternative Einzelposition mit deinem Scannerbudget.';
-  $('#npc-controls').hidden = activeView !== 'plan' || !npc;
-  $('#bazaar-goal-controls').hidden = activeView !== 'plan' || npc;
-  $('#strategy-description').textContent = npc ? 'Buy-Order → NPC-Verkauf' : 'Buy-Order → Bazaar-Sell-Offer';
-  $('#sell-heading').textContent = npc ? 'NPC-PREIS' : 'SELL-OFFER';
+  const planNpc = profiles.plan.destination === 'npc';
+  form.elements.tax.disabled = planNpc;
+  $('#npc-controls').hidden = !planNpc;
+  $('#bazaar-goal-controls').hidden = planNpc;
+  $('#overview-destination').value = profiles.scanner.destination;
+  $('#strategy-description').textContent = planNpc ? 'Buy-Order → NPC-Verkauf' : 'Buy-Order → Bazaar-Sell-Order';
+  $('#sell-heading').textContent = planNpc ? 'NPC-PREIS' : 'SELL-ORDER';
   $('#market-caption').textContent = npc ? 'Mit NPC-Preis über dem Kaufgebot' : 'Auswertbare Bazaar-Spreads';
   $('#scanner-price-label').textContent = npc ? 'Coins je Item · NPC-Verkauf' : 'Coins je Item · Bazaar';
   $('#flow-heading').textContent = npc ? 'Einkaufsseite · geschätzt' : 'schwächere Seite · geschätzt';
-  $('#tax-note').textContent = npc ? 'NPC-Basispreise ohne Bazaar-Steuer. Individuelle Boni und Verkaufslimits im Spiel prüfen.'
+  $('#tax-note').textContent = planNpc ? 'NPC-Basispreise ohne Bazaar-Steuer. Individuelle Boni und Verkaufslimits im Spiel prüfen.'
     : 'Steuer im Spiel prüfen und hier anpassen. 1,25 % ist ein konfigurierbarer Startwert.';
-  $('#sell-instruction').textContent = npc ? 'Verkaufe gefüllte Mengen beim NPC. Prüfe dort den tatsächlichen Preis und dein verbleibendes Verkaufslimit. Die Zeit für den manuellen Verkauf ist nicht im Modell enthalten.'
+  $('#sell-instruction').textContent = planNpc ? 'Verkaufe gefüllte Mengen beim NPC. Prüfe dort den tatsächlichen Preis und dein verbleibendes Verkaufslimit. Die Zeit für den manuellen Verkauf ist nicht im Modell enthalten.'
     : 'Verkaufe gefüllte Mengen anschließend als Sell-Offer zum angegebenen Preis. Die Verkaufssteuer ist im Modellgewinn enthalten.';
   $('#npc-status').hidden = !npc;
-  $('#npc-status').textContent = !npcAvailable() ? 'NPC-Preise fehlen oder sind veraltet. NPC-Flips werden bis zur nächsten erfolgreichen Aktualisierung nicht berechnet.'
-    : `${data.itemsError ? `${data.itemsError}. Letzte bekannte Preise werden verwendet. ` : ''}NPC-Basispreise geladen am ${new Date(data.itemsFetchedAt).toLocaleString('de-DE')}. Individuelle Verkaufslimits werden nicht automatisch abgezogen.`;
+  $('#npc-status').textContent = metadataStatus(itemsData);
 }
 function setView(view) {
   activeView = view;
   fillForm();
+  $('.filters').hidden = view !== 'plan';
+  $('.workspace').classList.toggle('overview', view !== 'plan');
   for (const name of ['scanner', 'plan']) {
     const active = name === view;
     $(`#tab-${name}`).setAttribute('aria-selected', String(active));
@@ -88,15 +91,19 @@ function compute() {
   const s = currentSettings();
   persist('bazaar-profiles', saveProfiles(profiles));
   updateMode();
+  lastNpcAvailable = npcAvailable();
   $('#stat-budget').textContent = compact.format(s.budget);
+  $('#budget-caption').textContent = activeView === 'scanner' ? 'REFERENZBUDGET' : 'PLANBUDGET';
+  $('#budget-description').textContent = activeView === 'scanner' ? 'Feste Vergleichsbasis · keine Budgeteingabe' : 'Coins · für den gemeinsamen Plan';
+  $('#matches-description').textContent = activeView === 'scanner' ? 'Nach festen Vergleichsannahmen' : 'Nach deinen Planfiltern';
   const goal = activeView === 'scanner' ? 'Alternative Einzel-Flips' : s.destination === 'npc'
     ? s.npcPreference === 'compact' ? 'Wenige Stück bevorzugen' : 'Nettogewinn'
     : s.allocationGoal === 'budget' ? 'Budget ausschöpfen' : 'Nettogewinn';
   $('#strategy-preset').textContent = `${goal} · ${fmt(s.horizon)} Std. · ${fmt(s.share)} % Marktanteil${activeView === 'plan' ? ` · bis zu ${s.maxPositions} Items` : ''}. Durchsatz und Orderbuch begrenzen die Mengen.`;
   if (!data?.products) return;
   for (const view of ['scanner', 'plan']) {
-    results[view] = Object.entries(data.products).map(([id, product]) => analyze({ ...product, product_id: id }, profiles[view], data.names?.[id],
-      npcAvailable() ? data.npcPrices?.[id] : undefined)).filter(Boolean);
+    results[view] = Object.entries(data.products).map(([id, product]) => analyze({ ...product, product_id: id }, profiles[view], itemsData?.names?.[id],
+      npcAvailable() ? itemsData?.npcPrices?.[id] : undefined)).filter(Boolean);
   }
   candidates = results[activeView];
   plan = allocate(results.plan, profiles.plan);
@@ -157,7 +164,7 @@ function render() {
     <td class="mint">+${fmt(r.profit)}</td><td><span class="roi">${fmt(r.roi)} %</span></td>
     <td>${compact.format(r.daily)}</td><td>${integer.format(r.quantity)}</td><td class="mint">+${compact.format(r.total)}</td></tr>`).join('');
   $('#empty').hidden = !!shown.length;
-  $('#empty').textContent = 'Keine passenden Flips. Passe Filter, Budget oder Suche an.';
+  $('#empty').textContent = 'Keine passenden Flips in der Vergleichsbasis. Prüfe Verkaufsziel, Suche oder Merkliste.';
   $('#more').hidden = shown.length <= limit;
   $('#result-description').textContent = `${Math.min(limit, shown.length)} von ${shown.length} Kandidaten · Item anklicken für Orderbuch`;
 }
@@ -172,7 +179,7 @@ function showDetail(id) {
   const context = detailContext(activeView, r, planned);
   const { displayed } = context;
   const stats = [
-    ['Deine Buy-Order', `${fmt(r.buy)} Coins`], [r.destination === 'npc' ? 'NPC-Basispreis' : 'Dein Sell-Offer', `${fmt(r.sell)} Coins`],
+    [activeView === 'plan' ? 'Deine Buy-Order' : 'Buy-Order · Referenz', `${fmt(r.buy)} Coins`], [r.destination === 'npc' ? 'NPC-Basispreis' : 'Sell-Order · Modell', `${fmt(r.sell)} Coins`],
     ['Netto je Item', `${fmt(r.profit)} Coins`], [context.quantityLabel, `${integer.format(displayed.quantity)} Items`],
     [context.capitalLabel, `${fmt(displayed.capital)} Coins`], [context.profitLabel, `${fmt(displayed.total)} Coins`],
   ];
@@ -184,18 +191,20 @@ function showDetail(id) {
     Offene Kauforders: ${integer.format(r.buyOrders)} (${integer.format(r.buyOpen)} Items) · Offene Verkaufsangebote: ${integer.format(r.sellOrders)} (${integer.format(r.sellOpen)} Items).<br>
     Orderdruck am besten Preis: ${fmt(r.pressure)} Std. · Warteschlange vor deinen Preisen: ${integer.format(r.bidQueue)} / ${integer.format(r.askQueue)} Items.</p>
     ${r.warnings.length ? `<p class="notice">${r.warnings.map(esc).join('<br>')}</p>` : ''}
-    <p class="detail-note">Das Orderbuch zeigt bestehende Preisstufen, nicht deine vorgeschlagenen Orders. Durchsatz, Modellzeit und Menge beruhen auf Wochenmitteln und deinem angenommenen Marktanteil. Neue Orders können dich überbieten.</p>
+    <p class="detail-note">Das Orderbuch zeigt bestehende Preisstufen, nicht die vorgeschlagenen Orders. Durchsatz, Modellzeit und Menge beruhen auf Wochenmitteln und dem ${activeView === 'plan' ? 'im Plan eingestellten Marktanteil' : 'festen Referenz-Marktanteil'}. Neue Orders können dich überbieten.</p>
     <div class="books">${book('Kaufgebote · höchste zuerst', r.bids)}${r.destination === 'npc' ? '<p class="detail-note">Der NPC-Verkauf verwendet den festen Basispreis aus den Itemdaten. Bazaar-Verkaufsangebote werden für diesen Flip nicht benötigt.</p>' : book('Verkaufsangebote · niedrigste zuerst', r.asks)}</div>`;
   if (!$('#detail').open) $('#detail').showModal();
 }
 function updateStatus() {
+  if (data?.products && npcAvailable() !== lastNpcAvailable) compute();
   $('#auto-refresh').textContent = loading ? 'Automatik aktiv · wird aktualisiert …'
     : `Automatik aktiv · nächste Prüfung in ${Math.max(0, Math.ceil((nextLoadAt - Date.now()) / 1000))} s`;
+  if (currentSettings().destination === 'npc') $('#npc-status').textContent = metadataStatus(itemsData);
   if (!data?.lastUpdated) return;
   const age = Math.max(0, Math.floor((Date.now() - data.lastUpdated) / 1000));
   const stale = data.stale || age > Math.max(180, (data.refreshSeconds || 60) * 3);
   $('#connection').textContent = stale ? '● Daten veraltet' : data.error ? '● Aktualisierung gestört' : '● Hypixel verbunden';
-  $('#timestamp').textContent = `API-Stand ${new Date(data.lastUpdated).toLocaleTimeString('de-DE')} · vor ${age} s`;
+  $('#timestamp').textContent = `Hypixel-Stand ${new Date(data.lastUpdated).toLocaleString('de-DE')} · vor ${age} s`;
   $('#notice').hidden = !stale && !data.error;
   $('#notice').textContent = `${stale ? 'Veraltete Marktdaten – Empfehlungen vor einem Trade erneut prüfen. ' : ''}${data.error ? `Aktualisierung fehlgeschlagen: ${data.error}. Letzter Datenstand bleibt sichtbar.` : ''}`;
 }
@@ -203,28 +212,29 @@ async function load() {
   if (loading) return;
   loading = true;
   clearTimeout(loadTimer);
-  $('#refresh').disabled = true;
-  $('#refresh').textContent = '↻ Lade Marktdaten …';
+  updateStatus();
+  let receivedStatus;
   try {
     const response = await fetch('/api/bazaar', { signal: AbortSignal.timeout(20000) });
     const result = await response.json();
+    receivedStatus = result;
+    const merged = mergeApiData({ market: data, items: itemsData }, result, response.ok);
+    data = merged.market;
+    itemsData = merged.items;
     if (!response.ok || !result.products) throw new Error(result.error || `HTTP ${response.status}`);
-    data = result;
     compute();
     updateStatus();
   } catch (error) {
-    if (data) { data.error = error.message; updateStatus(); }
+    if (data) { data.error = error.message; compute(); updateStatus(); }
     else {
       $('#connection').textContent = '● Verbindung gestört';
       $('#notice').hidden = false;
-      $('#notice').textContent = `Keine Marktdaten verfügbar: ${error.message}. Automatischer neuer Versuch in 60 Sekunden.`;
-      $('#empty').textContent = 'Die Hypixel-API ist derzeit nicht erreichbar. Erneut aktualisieren oder kurz warten.';
+      $('#notice').textContent = `Keine Marktdaten verfügbar: ${error.message}. Der nächste Versuch erfolgt automatisch.`;
+      $('#empty').textContent = 'Die Hypixel-API ist derzeit nicht erreichbar. Die App versucht es automatisch erneut.';
     }
   } finally {
     loading = false;
-    $('#refresh').disabled = false;
-    $('#refresh').textContent = '↻ Daten aktualisieren';
-    const delay = data?.nextRefreshAt > Date.now() ? Math.max(2000, data.nextRefreshAt - Date.now() + 1500) : 60000;
+    const delay = nextLoadDelay(receivedStatus || data);
     nextLoadAt = Date.now() + delay;
     loadTimer = setTimeout(load, delay);
     updateStatus();
@@ -243,10 +253,10 @@ for (const name of ['scanner', 'plan']) {
 form.addEventListener('input', () => { validateBudget(); if (applyForm()) { limit = 50; compute(); } });
 form.elements.budget.addEventListener('blur', () => validateBudget(true));
 form.elements.budget.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); validateBudget(true); applyForm(); compute(); } });
-$('#reset').addEventListener('click', () => { profiles[activeView] = { ...profileDefaults[activeView] }; fillForm(); limit = 50; compute(); });
+$('#reset').addEventListener('click', () => { profiles.plan = { ...profileDefaults.plan }; fillForm(); limit = 50; compute(); });
+$('#overview-destination').addEventListener('input', e => { profiles.scanner = overviewSettings({ destination: e.target.value }); limit = 50; compute(); });
 for (const selector of ['#search', '#sort', '#watch-only']) $(selector).addEventListener('input', () => { limit = 50; render(); });
 $('#more').addEventListener('click', () => { limit += 50; render(); });
-$('#refresh').addEventListener('click', load);
 $('#rows').addEventListener('click', e => {
   const star = e.target.closest('[data-star]');
   if (star) {

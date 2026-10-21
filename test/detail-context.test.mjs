@@ -24,5 +24,6 @@ test('scanner details remain an independent alternative even when item is planne
   const context = detailContext('scanner', candidate, { quantity: 100 });
   assert.equal(context.displayed, candidate);
   assert.equal(context.planned, false);
-  assert.match(context.note, /Scannerbudget/);
+  assert.match(context.note, /Referenzbudget/);
+  assert.doesNotMatch(context.note, /Scannerfilter|Scannerbudget/);
 });

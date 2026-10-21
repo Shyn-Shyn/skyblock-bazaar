@@ -9,6 +9,14 @@ export const defaults = {
 
 export const planDefaults = { ...defaults, horizon: 24, maxPositions: 12, allocationGoal: 'budget' };
 
+export function itemName(id, officialName) {
+  const clean = typeof officialName === 'string' ? officialName.replace(/§./g, '').trim() : '';
+  if (clean) return clean;
+  const words = value => value.toLowerCase().split('_').filter(Boolean)
+    .map(word => word[0].toUpperCase() + word.slice(1)).join(' ');
+  return /^SHARD_.+/.test(id) ? `${words(id.slice(6))} Shard` : words(id);
+}
+
 export function parseBudget(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
   let text = String(value ?? '').trim().replace(/\s/g, '');
@@ -165,7 +173,7 @@ export function analyze(product, input = defaults, name, npcPrice) {
   if (npc) warnings.push('NPC-Basispreis aus Itemdaten. Verkaufbarkeit und persönliche Verkaufslimits im Spiel prüfen; keine individuellen Boni eingerechnet.');
   const score = Math.max(0, total) / (1 + Math.log1p(pressure)) / (roi > 100 ? 3 : 1);
   return {
-    id: product.product_id, name: name || product.product_id.replaceAll('_', ' '), destination: s.destination,
+    id: product.product_id, name: itemName(product.product_id, name), destination: s.destination,
     buy, sell, spread, profit, roi, quantity, total, capital: buy * quantity,
     daily, buyWeekly, sellWeekly, buyHourly, sellHourly, hours,
     bidQueue, askQueue, queueHours, pressure, score, warnings, bids, asks,

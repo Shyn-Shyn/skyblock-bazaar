@@ -10,6 +10,7 @@ const assets = {
   '/market.mjs': ['market.mjs', 'text/javascript; charset=utf-8'],
   '/profiles.mjs': ['profiles.mjs', 'text/javascript; charset=utf-8'],
   '/detail-context.mjs': ['detail-context.mjs', 'text/javascript; charset=utf-8'],
+  '/data-status.mjs': ['data-status.mjs', 'text/javascript; charset=utf-8'],
 };
 
 // Shared production dispatch. Only /api/bazaar is delegated to the caller.

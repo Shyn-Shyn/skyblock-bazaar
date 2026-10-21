@@ -5,11 +5,11 @@ export function detailContext(view, candidate, position) {
     displayed: inPlan && position ? position : candidate,
     planned: inPlan && Boolean(position),
     missingFromPlan: inPlan && !position,
-    quantityLabel: inPlan ? position ? 'Geplante Kaufmenge' : 'Kapazitätsalternative · Planprofil' : 'Positionsgröße (Modell)',
-    capitalLabel: inPlan && !position ? 'Einsatz · Kapazitätsalternative' : 'Gebundenes Budget',
+    quantityLabel: inPlan ? position ? 'Geplante Kaufmenge' : 'Kapazitätsalternative · Planprofil' : 'Referenzmenge (Modell)',
+    capitalLabel: inPlan ? !position ? 'Einsatz · Kapazitätsalternative' : 'Gebundenes Budget' : 'Referenzeinsatz (Modell)',
     profitLabel: inPlan && !position ? 'Gewinn · Kapazitätsalternative' : 'Positionsgewinn (Modell)',
     note: inPlan && !position
       ? 'Dieses Item ist nicht mehr im aktuellen Investitionsplan. Die folgenden Zahlen zeigen ausschließlich die Kapazitätsalternative mit deinem Planprofil und sind keine aktuelle Kaufempfehlung.'
-      : inPlan ? 'Investitionsplan' : 'Alle Flips: alternative Einzelposition mit dem Scannerbudget. Diese Ansicht verwendet ausschließlich deine Scannerfilter.',
+      : inPlan ? 'Investitionsplan' : 'Marktübersicht: alternative Einzelposition mit 1 Mio. Coins Referenzbudget, 1 Stunde und 1 % angenommenem Marktanteil. Feste Vergleichsbasis, unabhängig von deinem Investitionsplan.',
   };
 }

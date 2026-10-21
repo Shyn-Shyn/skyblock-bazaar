@@ -19,28 +19,28 @@
   </header>
   <main>
     <section class="intro">
-      <div><p class="eyebrow">HYPIXEL SKYBLOCK / MARKET INTELLIGENCE</p><h1>Dein nächster <em>Flip.</em></h1><p class="subtitle">Finde Spreads mit Substanz. Mit Orderbuch, Volumen und deinem Budget.</p></div>
-      <div class="refresh-box"><button id="refresh" class="primary">↻ Daten aktualisieren</button><span id="timestamp">Marktdaten werden geladen …</span><span id="auto-refresh" role="timer">Automatisch · jede Minute</span></div>
+      <div><p class="eyebrow">HYPIXEL SKYBLOCK / MARKET INTELLIGENCE</p><h1>Dein nächster <em>Flip.</em></h1><p class="subtitle">Entdecke den Markt. Plane deine Investition mit eigenem Budget.</p></div>
+      <div class="refresh-box"><span id="timestamp">Marktdaten werden geladen …</span><span id="auto-refresh" role="timer">Automatisch · jede Minute</span></div>
     </section>
     <div id="notice" class="notice" role="status" hidden></div>
     <div class="view-tabs" role="tablist" aria-label="Ansicht">
-      <button id="tab-scanner" role="tab" aria-selected="true" aria-controls="scanner-panel">Alle Flips</button>
+      <button id="tab-scanner" role="tab" aria-selected="true" aria-controls="scanner-panel">Marktübersicht</button>
       <button id="tab-plan" role="tab" aria-selected="false" aria-controls="plan-panel" tabindex="-1">Investitionsplan</button>
     </div>
     <section class="stats" aria-label="Marktübersicht">
       <article><span>ITEMS IM MARKT</span><strong id="stat-items">—</strong><small id="market-caption">Auswertbare Bazaar-Spreads</small></article>
-      <article><span>PASSENDE FLIPS</span><strong id="stat-matches">—</strong><small>Nach deinen Filtern</small></article>
+      <article><span>PASSENDE FLIPS</span><strong id="stat-matches">—</strong><small id="matches-description">Nach festen Vergleichsannahmen</small></article>
       <article><span>BESTER MODELLGEWINN</span><strong class="mint" id="stat-profit">—</strong><small>Pro Position · nach Steuer</small></article>
-      <article><span>BUDGET DIESER ANSICHT</span><strong id="stat-budget">1,00 Mio.</strong><small>Coins · unabhängig je Reiter</small></article>
+      <article><span id="budget-caption">REFERENZBUDGET</span><strong id="stat-budget">1,00 Mio.</strong><small id="budget-description">Feste Vergleichsbasis · keine Budgeteingabe</small></article>
     </section>
-    <div class="workspace">
-      <aside class="filters">
-        <div class="section-heading"><h2 id="filter-heading">Filter · Alle Flips</h2><button id="reset" class="text-button">Zurücksetzen</button></div>
+    <div class="workspace overview">
+      <aside class="filters" hidden>
+        <div class="section-heading"><h2 id="filter-heading">Filter · Investitionsplan</h2><button id="reset" class="text-button">Zurücksetzen</button></div>
         <p class="hint" id="strategy-description">Buy-Order → Bazaar-Sell-Offer</p>
         <form id="filters">
-          <label for="destination">Verkaufsziel</label><select id="destination" name="destination" aria-label="Verkaufsziel"><option value="bazaar">Bazaar · Sell-Offer</option><option value="npc">NPC · fester Verkaufspreis</option></select>
-          <p class="hint">Einkauf jeweils per Bazaar-Buy-Order, kein Sofortkauf. Filter gelten nur für den aktiven Reiter.</p>
-          <p class="hint" id="profile-help"></p>
+          <label for="destination">Verkaufsziel</label><select id="destination" name="destination" aria-label="Verkaufsziel im Plan"><option value="bazaar">Bazaar · Sell-Order</option><option value="npc">NPC · Verkauf</option></select>
+          <p class="hint">Einkauf jeweils per Bazaar-Buy-Order, kein Sofortkauf. Filter gelten für deinen Investitionsplan.</p>
+          <p class="hint" id="profile-help">Eigene Planfilter. Startwerte: 24 Stunden, 1 % Marktanteil, bis zu 12 Items. Längere Planung erhöht das Preisänderungsrisiko.</p>
           <label>Gesamtbudget <span>Coins</span><input name="budget" type="text" inputmode="text" autocomplete="off" spellcheck="false" value="1.000.000" aria-describedby="budget-help"></label>
           <p id="budget-help" class="hint" aria-live="polite">1.000.000 Coins · auch 1M, 10M oder 1,5M möglich</p>
           <p id="strategy-preset" class="strategy-preset">Gewinnorientiert · bis zu 6 Items<br>Durchsatz und Orderbuch werden berücksichtigt.</p>
@@ -64,7 +64,7 @@
           <p class="hint">Der Marktanteil ist deine Annahme, welcher Anteil des geschätzten Durchsatzes auf deine Orders entfällt.</p>
             <label>Max. Netto-ROI <span>%</span><input name="maxRoi" type="number" min="0" max="100000" step="1" value="50"></label>
             <label>Max. Orderdruck <span>Std.</span><input name="maxQueue" type="number" min="0" max="100000" step="1" value="6"></label>
-            <p class="hint">Startwerte: Scanner 1 Stunde, Plan 24 Stunden; jeweils 1 % angenommener Marktanteil, mindestens 1.000 Items/Tag je benötigter Seite, 2–50 % Netto-ROI. Das sind Modellannahmen, keine nachgewiesen optimalen Werte.</p>
+            <p class="hint">Plan-Startwerte: 24 Stunden, 1 % angenommener Marktanteil, mindestens 1.000 Items/Tag je benötigter Seite, 2–50 % Netto-ROI. Das sind Modellannahmen, keine nachgewiesen optimalen Werte.</p>
           </details>
           <input name="minProfit" type="hidden" value="0.1">
           <input name="maxQuantity" type="hidden" value="71680">
@@ -94,12 +94,14 @@
           <p class="disclaimer">Aktualisiert sich mit den Live-Daten und Strategie-Einstellungen. Bestehende eigene Orders werden nicht erfasst. Heuristische Verteilung, kein garantierter Maximalgewinn; alle Positionen werden als parallel betreut angenommen.</p>
         </section>
         <section id="scanner-panel" role="tabpanel" aria-labelledby="tab-scanner">
-        <div class="results-header"><div><p class="eyebrow">MARKTSCANNER</p><h2>Flip-Kandidaten <span id="count" class="badge">0</span></h2></div><button id="export" class="secondary" disabled>CSV exportieren ↗</button></div>
+        <div class="results-header"><div><p class="eyebrow">ALLGEMEINE MARKTÜBERSICHT</p><h2>Beste Flip-Kandidaten <span id="count" class="badge">0</span></h2></div><button id="export" class="secondary" disabled>CSV exportieren ↗</button></div>
+        <div class="overview-choice"><label for="overview-destination">Verkaufsziel<select id="overview-destination"><option value="bazaar">Bazaar · Sell-Order</option><option value="npc">NPC · Verkauf</option></select></label><p class="hint">Einkauf per Bazaar-Buy-Order. Allgemeine Empfehlungen mit fester Vergleichsbasis.</p></div>
+        <details class="reference-basis"><summary>Vergleichsbasis: 1 Mio. Coins · 1 Stunde · Modellwerte</summary><p class="hint">Jeder Flip ist eine alternative Einzelposition mit 1 Mio. Coins Referenzbudget, 1 Stunde Zeithorizont und 1 % angenommenem Marktanteil. Feste Auswahl: 2–50 % Netto-ROI, mindestens 1.000 Items pro Tag je benötigter Seite, höchstens 6 Stunden Orderdruck, 0,1 Coins Tick und maximal 71.680 Stück. Bazaar-Steuer: angenommene 1,25 %; NPC ohne Bazaar-Verkaufssteuer. Die Empfehlung gewichtet Positionsgewinn und Orderdruck. Passe persönliche Vorgaben im Investitionsplan an. Keine Gewinn- oder Füllgarantie.</p></details>
         <div class="toolbar"><input id="search" type="search" placeholder="Item suchen …" aria-label="Item suchen"><label class="sort-label">Sortieren<select id="sort"><option value="score">Empfehlung</option><option value="total">Modellgewinn</option><option value="roi">Netto-ROI</option><option value="daily">Tagesdurchsatz</option><option value="profit">Profit / Item</option></select></label><label class="watch-toggle"><input id="watch-only" type="checkbox">★ Merkliste</label></div>
         <div class="table-wrap"><table><thead><tr><th><span class="sr-only">Merken</span></th><th>ITEM</th><th>KAUF / VERKAUF <small id="scanner-price-label">Coins je Item · Bazaar</small></th><th>NETTO / ITEM</th><th>NETTO-ROI</th><th>DURCHSATZ / TAG <small id="flow-heading">schwächere Seite · geschätzt</small></th><th>MENGE <small>Modell</small></th><th>GEWINN <small>Modell · Coins</small></th></tr></thead><tbody id="rows"></tbody></table></div>
         <div id="empty" class="empty">Marktdaten werden geladen …</div>
         <div class="table-footer"><span id="result-description">Warte auf Hypixel …</span><button id="more" class="text-button" hidden>Weitere 50 anzeigen ↓</button></div>
-        <p class="disclaimer">Der Scanner zeigt alternative Einzel-Flips mit jeweils dem gesamten Budget. Der Reiter Investitionsplan teilt dein Budget gemeinsam auf. Modellwerte, keine Gewinn- oder Füllgarantie.</p>
+        <p class="disclaimer">Die Übersicht vergleicht alternative Einzel-Flips mit festen Referenzannahmen. Dein persönliches Budget und eigene Filter verwendest du im Investitionsplan. Modellwerte, keine Gewinn- oder Füllgarantie.</p>
         </section>
       </section>
     </div>
@@ -110,7 +112,8 @@
       <p><b>Durchsatz:</b> max(0, movingWeek − offenes Volumen) / 7, getrennt für beide Seiten. Die API beschreibt movingWeek als gehandelte Wochenmenge plus Live-Bestand. Daraus wird ein gleichmäßiger Durchsatz angenähert; einzelne Trades und echte Füllzeiten sind nicht verfügbar.</p>
       <p><b>Menge:</b> Begrenzt durch Budget, Mengenlimit und geschätzten Durchsatz beider nacheinander ausgeführter Schritte innerhalb des Zeithorizonts. Dein angenommener Marktanteil reduziert den nutzbaren Durchsatz. Bei Preisverbesserung 0 wird die sichtbare gleichpreisige Warteschlange mitgerechnet.</p>
       <p><b>Orderdruck:</b> Menge am besten Kaufpreis / geschätzter Einkaufsdurchsatz pro Stunde + Menge am besten Verkaufspreis / Verkaufsdurchsatz pro Stunde. Empfehlung = positiver Positionsgewinn / (1 + ln(1 + Orderdruck)); ROI über 100 % erhält zusätzlich Faktor ⅓. Dies ist eine Heuristik, kein validiertes Prognosemodell.</p>
-      <p><b>Getrennte Filter:</b> Alle Flips und Investitionsplan speichern eigene Strategieparameter und Budgets. Zurücksetzen betrifft nur die aktive Ansicht. Suche, Sortierung und Merkliste filtern nur den Scanner. Bestehende Einstellungen werden für den Scanner übernommen; der Plan übernimmt zunächst Budget, Verkaufsziel und Steuer, startet sonst mit 24 Stunden und bis zu zwölf Positionen.</p>
+      <p><b>Übersicht und Plan:</b> Die Marktübersicht nutzt feste Referenzannahmen; nur ihr Verkaufsziel wird gespeichert. Suche, Sortierung und Merkliste betreffen ausschließlich die Übersicht. Budget und Strategieparameter bearbeitest du im Investitionsplan; Zurücksetzen betrifft nur den Plan. Bestehende Planprofile bleiben erhalten. Ältere Einstellungen liefern bei erstmaliger Migration Budget, Verkaufsziel und Steuer für den Plan; sonst startet er mit 24 Stunden und bis zu zwölf Positionen.</p>
+      <p><b>Aktualität:</b> Bazaar-Prüfung standardmäßig jede Minute, bei Fehlern mit längerer Wartezeit. Itemnamen und NPC-Preise werden stündlich geprüft. Hypixel kann denselben gecachten Quellstand zurückgeben: Die letzte erfolgreiche Prüfung und der Hypixel-Quellstand sind unterschiedliche Zeitpunkte.</p>
       <p><b>Investitionsplan:</b> Vergleicht Aufteilungen nach Positionsgewinn, Rendite und Budgetnutzung sowie alternative Startpositionen aus den jeweils acht besten Kandidaten dieser Kriterien. Bazaar-Ziel „Budget ausschöpfen“ priorisiert eingesetzte Coins vor Nettogewinn; „Nettogewinn“ priorisiert tatsächlichen Modellgewinn. Dadurch kann jeweils weniger Gewinn oder mehr Restbudget entstehen. Durchsatz, Warteschlangen, Orderdruck und Positionslimits gelten immer. Keine Reserve; nur ganze Stücke. Die begrenzte Suche garantiert kein globales Optimum und prognostiziert keine tatsächlichen Füllungen. Ein längerer Zeithorizont erhöht das Preisänderungsrisiko.</p>
       <p><b>NPC-Aufwand:</b> Das Gesamtstücklimit (Startwert 2.048) gilt gemeinsam für alle Planpositionen. „Wenige Stück bevorzugen“ bewertet Varianten nach tatsächlichem Nettogewinn / (1 + Gesamtstückzahl / 64), bei Gleichstand nach weniger Stücken und höherem Gewinn. Auch kürzere Varianten werden verglichen. 64 ist eine reine Heuristik-Skalierung und keine Spiel-/Stackregel. Die angezeigten Coin-Gewinne bleiben unverändert; manuelle Verkaufszeit wird nicht geschätzt. „Nettogewinn“ priorisiert Gewinn unter demselben Stücklimit. Beide Werte sind persönliche Planungsvorgaben, keine NPC-Verkaufsgrenzen.</p>
       <p><b>Grenzen:</b> Nur die von Hypixel gelieferten bis zu 30 Orderbuch-Einträge pro Seite sind sichtbar. Orderänderungen, Stornierungen und Manipulation lassen sich aus einer Momentaufnahme nicht sicher erkennen. <a href="https://api.hypixel.net/#tag/SkyBlock/paths/~1v2~1skyblock~1bazaar/get" target="_blank" rel="noreferrer">Hypixel-API-Dokumentation ↗</a></p>
