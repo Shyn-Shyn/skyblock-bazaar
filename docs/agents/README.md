@@ -27,7 +27,7 @@ und kein OpenAI-API-Key für einen eigenen Orchestrator nötig.
 | `.codex/agents/bazaar_product_owner.toml` | Bazaar-kundiger PO |
 | `.codex/agents/bazaar_developer.toml` | Umsetzung und Fehlerkorrektur |
 | `.codex/agents/bazaar_qa.toml` | unabhängige Prüfung und BUG-Rückgabe |
-| `.codex/agents/bazaar_release.toml` | freigegebenen Stand pushen, CI/Image und beauftragtes Live-Deployment prüfen |
+| `.codex/agents/bazaar_release.toml` | freigegebenen Stand nach GitHub pushen, CI und veröffentlichtes Image prüfen |
 | `docs/agents/WORKFLOW.md` | Übergaben, QA-Runden und Fertig-Kriterien |
 | `docs/agents/BAZAAR.md` | Fachwissen, Quellen und Modellgrenzen |
 | `docs/agents/TASK-TEMPLATE.md` | Vertrag und nachvollziehbarer Verlauf |
@@ -41,7 +41,7 @@ des Hauptchats. Die Rollen stellen keine getrennten Sicherheitsumgebungen dar.
 Release läuft nach den anderen Phasen; das Limit von drei gleichzeitig
 geöffneten Subagent-Threads kann bestehen bleiben.
 
-## Veröffentlichung und Deployment
+## GitHub-Veröffentlichung und Image-Prüfung
 
 Für einen Release-Auftrag genügt beispielsweise:
 
@@ -51,23 +51,27 @@ Für einen Release-Auftrag genügt beispielsweise:
 
 Der Hauptagent übergibt Ticket/Vertrag, freigegebenen Inhaltsstand samt Diff
 und Dateiliste, Developer-/QA-Nachweise, PO-Abnahme, Nutzerautorisierung und
-Remote/Zielbranch. Für ein zusätzlich beauftragtes Live-Update gehören der
-tatsächliche Zielhost/Portainer-Stack und vorhandener Zugriff dazu; Zugangsdaten
-werden nicht in Tickets geschrieben. Die vollständige Übergabe und Rückgabe
+Remote/Zielbranch sowie bekannte GitHub-/Registry-Werkzeuge und Zugänge ohne
+Secrets. Die vollständige Übergabe und Rückgabe
 stehen im Task-Template. Eine read-only Vorprüfung ist auch vor Abnahme möglich.
 Mutierender Release beginnt erst nach den Freigaben für denselben Inhalt.
 
-Release schützt fremde Änderungen und prüft alle zu pushenden Commits. Push,
-CI/Image und Live-Deployment erhalten getrennte Nachweise. Push auf `main`
+Release schützt fremde Änderungen und prüft alle zu pushenden Commits. Lokale
+Freigabe, Push und CI/Image erhalten getrennte Nachweise. Push auf `main`
 startet die bestehende Pipeline mit Tests, Container-Smoke und amd64/arm64-
 Images. Der konkrete Commit muss im Remote, CI-Lauf und `sha-<vollständiger SHA>`-
 Image übereinstimmen. `latest` allein belegt keine Version.
 
-Ein grüner Image-Build aktualisiert Portainer nicht automatisch. Für Live-Erfolg
-müssen Ziel, laufendes Image und Erreichbarkeit tatsächlich geprüft werden.
-Fehlt ein nötiger Zugang, meldet Release diese Phase `BLOCKED` mit nächster
-Aktion; lokale Abnahme bleibt davon getrennt. Ein Healthcheck belegt keine
-frischen Hypixel-Daten. Nicht beauftragte Phasen sind `NICHT_BEAUFTRAGT`.
+Die Zuständigkeit des Release-Agenten endet mit der Prüfung des veröffentlichten
+Images. Fehlt ein nötiger GitHub-/Registry-Zugang, meldet Release diese Phase
+`BLOCKED` mit nächster Aktion; lokale Abnahme bleibt davon getrennt.
+Nicht beauftragte Phasen sind `NICHT_BEAUFTRAGT`.
+
+Netzwerkanfragen sind auf höchstens 30 Sekunden je Anfrage begrenzt. Registry-
+Abfragen enden insgesamt nach höchstens 120 Sekunden, CI-Warten einschließlich
+Wiederholungen nach höchstens zehn Minuten je Prüflauf. Bei Ablauf folgt
+`BLOCKED` mit letztem Stand, vorhandener CI-URL und konkreter Fortsetzung;
+verwendete Grenzen und Ergebnisse stehen im Bericht.
 
 Ist die neue native Rolle im laufenden Client noch nicht geladen, startet der
 Hauptagent einen Standard-Subagenten mit den **vollständigen**

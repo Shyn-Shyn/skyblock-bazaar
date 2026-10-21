@@ -4,9 +4,9 @@
 
 PO, Developer, unabhängige QA und ein Release-Agent sind im Repository eingerichtet. Öffne das
 Projekt in Codex und nenne deine Anforderung; `AGENTS.md` steuert die Übergaben
-und die Rückgabe von QA-Fehlern an den Developer. Bei beauftragtem Push oder
-Deployment übernimmt der Release-Agent nach QA-PASS und PO-Abnahme und prüft
-GitHub-Push, Image-Veröffentlichung und Live-Status getrennt.
+und die Rückgabe von QA-Fehlern an den Developer. Bei beauftragter GitHub-
+Veröffentlichung übernimmt der Release-Agent nach QA-PASS und PO-Abnahme und
+prüft GitHub-Push sowie das veröffentlichte Image für denselben Commit.
 [Bedienung, Rollen und Ablauf](docs/agents/README.md).
 Lokale Prüfung ohne Installation: `node scripts/check.mjs`.
 

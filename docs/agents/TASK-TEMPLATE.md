@@ -49,10 +49,9 @@ Modus: read-only Vorprüfung / mutierender Release nach QA-PASS + PO-ACCEPTED.
 - Developer-Nachweis, unabhängige QA-Evidenz und PO-Abnahme für diesen Stand:
 - Nutzerautorisierung mit Wortlaut/Bezug und Umfang; schon erteilt / fehlend:
 - Erlaubte Aktionen/Schreibrechte, Remote-URL und Zielbranch:
-- Bekannte Werkzeuge/Zugänge (ohne Secrets), konkretes Live-Ziel/Stack und
-  gewünschtes Image oder fehlende Angaben:
-- Relevante Dateien: publish-image.yml, Dockerfile, README.md,
-  GITHUB-PORTAINER.md, PORTAINER.md, portainer-ghcr.yaml:
+- Bekannte GitHub-/Registry-Werkzeuge und Zugänge (ohne Secrets), Image-Name
+  oder fehlende Angaben:
+- Relevante Dateien: .github/workflows/publish-image.yml und Dockerfile:
 - Rückgabe: getrennte Status und tatsächliche Evidenz gemäß Bericht unten;
   Hauptagent alleiniger Ticket-Editor:
 
@@ -63,10 +62,11 @@ Modus: read-only Vorprüfung / mutierender Release nach QA-PASS + PO-ACCEPTED.
 | Lokale Freigabe | | QA/PO, Inhaltsstand, node scripts/check.mjs |
 | GitHub-Push | | geprüfte Dateiliste, Commit, Remote/Branch, Remote-SHA |
 | CI/Image | | CI-URL/Endstatus für SHA, Publish, Image-sha-Tag/Digest und Architekturen soweit belegt |
-| Live-Deployment | | beauftragter Zielhost/Stack, tatsächlich laufendes Image, Container-/HTTP-Prüfung |
 
 Befehle und tatsächliche Ergebnisse, offene Prüflücken, konkrete nächste Aktion.
-Notwendige ungeprüfte Phase = BLOCKED. Image-Publish beweist kein Portainer-Update;
-/healthz beweist App-Erreichbarkeit, keine frischen Marktdaten. Keine Secrets.
+Netzgrenzen: höchstens 30 Sekunden je Anfrage, 120 Sekunden Registry insgesamt,
+zehn Minuten CI-Warten inklusive Wiederholungen je Prüflauf. Verwendete Grenzen
+und bei Ablauf letzten Stand, vorhandene CI-URL und Fortsetzung dokumentieren.
+Notwendige ungeprüfte Phase = BLOCKED. Release endet mit Image-Prüfung. Keine Secrets.
 Gesamtstatus DONE / BLOCKED; lokale Abnahme und offene Release-Schritte getrennt
 ausweisen. Inhaltsänderungen zurück an Developer/QA/PO, keine Release-Eigenkorrektur.

@@ -15,7 +15,7 @@ deterministischen Scheduler. Der Hauptagent führt die Übergaben aktiv aus.
 | CHANGES_REQUESTED | QA -> Hauptagent -> derselbe Developer | vollständige BUG-Liste; anschließend erneut QA |
 | ACCEPTANCE | PO | Nach QA-PASS fachliche Abnahme |
 | LOCAL_ACCEPTED | Hauptagent | QA-PASS + PO-ACCEPTED für dokumentierten Inhaltsstand |
-| RELEASE | bazaar_release | Nur beauftragten Push/CI/Image/Live-Schritt nach lokaler Abnahme ausführen |
+| RELEASE | bazaar_release | Beauftragten GitHub-Push und CI/Image-Prüfung nach lokaler Abnahme ausführen |
 | DONE | Hauptagent | Lokale Abnahme + alle beauftragten Release-Schritte belegt, keine notwendige Prüflücke |
 | BLOCKED | Hauptagent | offene Entscheidung/Umgebung oder drei erfolglose QA-Runden |
 
@@ -44,10 +44,10 @@ Release-Abschnitt des Task-Templates. Erforderlicher Kontext:
 - Freigegebener Basiscommit plus Diff, vollständige Dateiliste inklusive neuer
   Dateien und zu pushende Commits; bei bereits committem Stand dessen SHA.
 - Developer-Bericht, unabhängige QA-Evidenz und PO-Abnahme für denselben Inhalt.
-- Nutzerautorisierung mit Umfang: Commit/Push, Zielremote/-branch, Image-Publish,
-  gegebenenfalls konkrete Live-Aktion. Bereits erteilte Autorisierung gilt weiter.
-- Bekannte Werkzeuge/Zugänge, tatsächlicher Zielhost/Stack und Image-Version,
-  soweit vorhanden. Keine Secrets übergeben oder im Ticket speichern.
+- Nutzerautorisierung mit Umfang: Commit/Push, Zielremote/-branch und Image-Publish.
+  Bereits erteilte Autorisierung gilt weiter.
+- Bekannte GitHub-/Registry-Werkzeuge und Zugänge sowie Image-Name, soweit
+  vorhanden. Keine Secrets übergeben oder im Ticket speichern.
 - Schreibrechte und gewünschter Bericht gemäß Template; Ticket bleibt beim
   Hauptagenten. Release ändert keinen Anwendungscode und keine Tests.
 
@@ -63,8 +63,7 @@ nur verpacken. Inhaltsänderungen erfordern Developer-Korrektur, erneute
 betroffene QA und PO-Abnahme. Erfolgreicher `node scripts/check.mjs`-Nachweis
 muss genau zum finalen freigegebenen Inhaltsstand gehören.
 
-Den Betriebskontext aus `.github/workflows/publish-image.yml`, `Dockerfile`,
-`README.md`, `GITHUB-PORTAINER.md`, `PORTAINER.md` und `portainer-ghcr.yaml`
+Den Veröffentlichungskontext aus `.github/workflows/publish-image.yml` und `Dockerfile`
 erneut lesen. Die aktuelle Pipeline startet bei Push auf `main`, testet die
 Anwendung, baut ein Testimage, prüft Containerstart/Healthcheck und Icon und
 veröffentlicht amd64/arm64-Images als `latest` und `sha-<vollständiger SHA>`.
@@ -72,15 +71,19 @@ Remote-Commit, erfolgreicher CI-Lauf inklusive Publish und Image müssen
 derselben SHA zugeordnet werden. Ein fremder grüner Lauf oder `latest` allein
 reichen nicht. CI kann den Container-Nachweis liefern, wenn Docker lokal fehlt.
 
-GitHub-Push, CI/Image-Veröffentlichung und Live-Deployment bekommen getrennte
-Status und Belege. Portainer aktualisiert sich durch Image-Publish nicht
-automatisch. Live-Erfolg erfordert beauftragten tatsächlichen Zielhost/Stack,
-Zugriff, Nachweis des verwendeten Images (SHA-Tag/Digest), Containerzustand und
-App-Erreichbarkeit. `/healthz` beweist keine frischen Hypixel-Daten.
-Ein bloßer Neustart lädt kein neues Image. Fehlende notwendige Zugriffe oder
+Release umfasst ausschließlich GitHub-Veröffentlichung und die Prüfung des
+veröffentlichten Images. Lokale Freigabe, GitHub-Push und CI/Image erhalten
+getrennte Status und Belege. Fehlende notwendige GitHub-/Registry-Zugriffe oder
 Prüfungen ergeben für die betroffene Phase `BLOCKED` mit nächster Aktion;
 nicht beauftragte Phasen werden `NICHT_BEAUFTRAGT`. Lokale Abnahme kann dabei
 vorliegen; der Gesamtabschluss muss offene beauftragte Release-Aufgaben nennen.
+
+Jede Netzwerkanfrage ist explizit auf höchstens 30 Sekunden zu begrenzen.
+Registry-Abfragen haben insgesamt höchstens 120 Sekunden, CI-Warten inklusive
+Wiederholungen höchstens zehn Minuten je Prüflauf. Bei Ablauf die betroffene
+Phase `BLOCKED` melden, mit letztem Stand, vorhandener CI-URL und konkreter
+Fortsetzung. Keine Endlosschleifen oder unbegrenzten Downloads; verwendete
+Grenzen und tatsächliche Ergebnisse im Release-Bericht nennen.
 
 ## QA und Fehler-Rückgabe
 
