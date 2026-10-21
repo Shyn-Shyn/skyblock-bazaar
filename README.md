@@ -40,7 +40,8 @@ Budget eingeben, Verkaufsziel auswählen und die vorgeschlagene Aufteilung prüf
 - Standardmäßig höchstens **zwölf verschiedene Items** und **24 Stunden** Planungszeitraum.
 - Bis zu **100 % des Budgets in einem Item**, sofern die Modellgrenzen das erlauben.
 - Keine eingeplante Reserve. Ganze Stückzahlen, Durchsatz und Positionslimits können Restbeträge verursachen.
-- Bazaar-Ziel **Budget ausschöpfen** priorisiert eingesetzte Coins; alternativ **Nettogewinn**. Mehr Budgetnutzung kann weniger Gewinn bedeuten.
+- Bazaar-Ziel **Budget & schnelle Füllung** priorisiert zeitgewichteten Kapitaleinsatz; alternativ **Nettogewinn & schnelle Füllung**. Beide bevorzugen kürzere modellierte Kauf- und Verkaufszyklen. Die gespeicherten Zielwerte bleiben erhalten.
+- Jede Bazaar-Planposition muss mindestens **0,05 % des gesamten Planbudgets** als Nettogewinn erreichen, auch nach Teilzuteilung: bei 10 Mio. mindestens **5.000 Coins**, bei 40 Mio. **20.000 Coins**. Bagatellreste bleiben frei. NPC und Marktübersicht verwenden diese Schwelle nicht.
 - NPC-Ziel **Wenige Stück bevorzugen** berücksichtigt den manuellen Stückaufwand. Das persönliche **Gesamtstücklimit** startet bei **2.048** über alle Positionen; alternativ lässt sich Nettogewinn unter demselben Limit priorisieren.
 - Anzeige von Kaufmengen, Einsatz, Budgetanteilen, Nettogewinn und geschätzter Dauer.
 - Eigener CSV-Export für den Plan.
@@ -60,7 +61,7 @@ Im Investitionsplan lassen sich unter **Strategie anpassen** unter anderem Itema
 
 **Zurücksetzen** betrifft ausschließlich den Investitionsplan. Seine Filter, Budget und Ziele werden gespeichert und bleiben bei der Umstellung erhalten. Die Marktübersicht speichert nur ihr eigenes Verkaufsziel; alte Scannerbudgets und Strategieparameter beeinflussen sie nicht mehr. Suche, Merkliste und Sortierung ändern den Plan nicht. Bei erstmaliger Übernahme älterer Einstellungen übernimmt der Plan Budget, Steuer und Verkaufsziel und startet ansonsten mit seinen eigenen Vorgaben.
 
-Freies Budget wird mit den relevanten Modellgrenzen erläutert: Zeit/Marktanteil und Einzelkapazitäten, Item-/Positionslimits, ganze Stücke sowie NPC-Stücklimit oder Zielabwägung. Ein höherer Zeithorizont kann mehr Menge ermöglichen, erhöht aber das Preisänderungsrisiko. Keine Einstellung garantiert vollständige Budgetnutzung oder Ausführung.
+Freies Budget wird mit den relevanten Modellgrenzen erläutert: Zeit/Marktanteil und Einzelkapazitäten, Item-/Positionslimits, ganze Stücke sowie Gewinnschwelle, Tempogewichtung oder NPC-Stücklimit. Ein höherer Zeithorizont kann mehr Menge ermöglichen, erhöht aber das Preisänderungsrisiko. Keine Einstellung garantiert vollständige Budgetnutzung oder Ausführung.
 
 ## Datenquellen und API
 
@@ -103,6 +104,10 @@ Für Bazaar-Flips setzt das Modell ein Kaufgebot knapp über das beste bestehend
 Die Kaufmenge wird durch Budget, Orderbuch, geschätzten Durchsatz und Zeithorizont begrenzt. Der Durchsatz wird aus den Wochenvolumen abzüglich offener Ordermengen geschätzt. Bei Bazaar-Flips werden Einkauf und Verkauf zeitlich nacheinander modelliert; bei NPC-Flips wird nur die Einkaufsseite für den Marktdurchsatz berücksichtigt.
 
 Der Investitionsplan vergleicht mehrere mögliche Verteilungen nach dem gewählten Ziel. Er ist eine begrenzte Näherung und garantiert weder die mathematisch optimale Verteilung noch die tatsächliche Ausführung der Orders. Bei NPC-Ziel **Wenige Stück bevorzugen** werden vollständige Varianten einschließlich kürzerer Teilpläne nach Nettogewinn / (1 + Gesamtstückzahl / 64) gewichtet. 64 ist lediglich eine Heuristik-Skalierung, keine Stack-/Spielregel; 2.048 ist eine konfigurierbare persönliche Planungsvorgabe, keine NPC-Verkaufsgrenze. Angezeigte Gewinne bleiben tatsächliche Modellgewinne in Coins. Weniger Stücke können weniger Gewinn und freie Coins bedeuten.
+
+Im **Bazaar-Plan** gilt nach allen Mengen- und Budgetgrenzen pro tatsächlicher Position: `Menge × Nettogewinn je Item >= Gesamtbudget × 0,0005`. Die Schwelle wird ungerundet geprüft, bleibt bei Restbudget gleich und hat keine feste Coin-Untergrenze. Anschließend wird jede Position intern mit `1 / (1 + T / 6)` gewichtet, wobei `T` ihre modellierte Kauf- plus Verkaufszeit in Stunden ist. Bei Teilmengen bleibt die Wartezeit erhalten; nur die Füllzeit skaliert mit der Menge. Eine langsame Einkaufs- oder Verkaufsseite senkt damit die Gewichtung. Die 6 Stunden sind eine feste Produktheuristik, unabhängig vom Horizont und kein hartes Zeitlimit.
+
+**Budget & schnelle Füllung** vergleicht zuerst die Summe einzeln zeitgewichteter Kapitaleinsätze, danach die Summe zeitgewichteter Nettogewinne, dann tatsächliches Kapital, Nettogewinn und weniger Positionen. **Nettogewinn & schnelle Füllung** vergleicht zuerst die Summe zeitgewichteter Nettogewinne, dann tatsächlichen Nettogewinn, weniger Positionen und tatsächliches Kapital. Die Mehrfachsuche berücksichtigt neben Rohgewinn, Rendite und Kapital auch die beiden zeitgewichteten Kriterien und deren jeweils bis zu acht besten Startkandidaten. Gewinne, Kapital, ROI und Dauer in Plan, Details und CSV bleiben tatsächliche Modellwerte ohne Zeitabschlag. Kürzere Modellzeit kann weniger Coin-Gewinn oder freies Budget bedeuten; schnelle Füllungen und selteneres Nachstellen sind nicht garantiert.
 
 Für die Entwicklung steht eine [Offline-Browserumgebung mit kontrollierten Testdaten](test-support/README.md) zur Verfügung.
 

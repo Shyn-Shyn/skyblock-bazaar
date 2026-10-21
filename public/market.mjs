@@ -48,7 +48,7 @@ export function settings(input = {}, fallbackSettings = defaults) {
   }));
 }
 
-// Compare multiple bounded allocations by total modeled NET profit.
+// Compare bounded allocations; Bazaar utility weights actual positions by cycle time.
 // This is a multi-start heuristic, not proof of a global optimum.
 // Round purchase costs UP to hundredths so floating-point error cannot overspend.
 export function allocate(candidates, input = {}) {
@@ -58,11 +58,17 @@ export function allocate(candidates, input = {}) {
   const itemCapUnits = Math.floor(budgetUnits * s.maxAllocation / 100);
   const npc = s.destination === 'npc';
   const compactNpc = npc && s.npcPreference === 'compact';
+  // Product heuristics, not game rules: ignore tiny positions and favor short cycles.
+  const minimumPositionProfit = npc ? 0 : s.budget * .0005;
+  const timeWeight = hours => 1 / (1 + hours / 6);
   const totalOf = (rows, key) => rows.reduce((sum, r) => sum + r[key], 0);
+  const weightedTotal = (rows, key) => rows.reduce((sum, r) => sum + r[key] * timeWeight(r.hours), 0);
   const seenIds = new Set();
   const ranked = candidates.filter(r => r.eligible && r.quantity >= 1 && Number.isFinite(r.quantity) && r.buy > 0 &&
     Number.isFinite(r.buy) && Number.isFinite(r.profit) && r.profit > 0 &&
     Number.isFinite(r.pressure) && r.pressure >= 0 && r.pressure <= s.maxQueue &&
+    (npc || (Number.isFinite(r.hours) && Number.isFinite(r.queueHours) &&
+      r.queueHours >= 0 && r.hours >= r.queueHours)) &&
     !seenIds.has(r.id) && seenIds.add(r.id))
     .map(r => ({ ...r, allocationScore: (r.profit / r.buy) / (1 + Math.log1p(r.pressure)) / (r.roi > 100 ? 3 : 1) }))
     ;
@@ -70,9 +76,14 @@ export function allocate(candidates, input = {}) {
       const unitCost = Math.ceil(r.buy * 100);
       const quantity = Math.floor(Math.min(r.quantity, s.maxQuantity, itemsLeft,
         Math.min(remaining, itemCapUnits) / unitCost));
-      return { r, quantity, cost: quantity * unitCost, gain: quantity * r.profit, rate: r.profit / r.buy,
-        capital: quantity * r.buy, compact: quantity * r.profit / (1 + quantity / 64) };
-    }).filter(o => o.quantity > 0);
+      const hours = r.hours == null ? null : r.queueHours + (r.hours - r.queueHours) * quantity / r.quantity;
+      const gain = quantity * r.profit;
+      const capital = quantity * r.buy;
+      return { r, quantity, hours, cost: quantity * unitCost, gain, rate: r.profit / r.buy,
+        capital, compact: gain / (1 + quantity / 64),
+        weightedGain: npc ? gain : gain * timeWeight(hours),
+        weightedCapital: npc ? capital : capital * timeWeight(hours) };
+    }).filter(o => o.quantity > 0 && o.gain >= minimumPositionProfit);
   const compare = mode => (a, b) => b[mode] - a[mode] ||
     b.r.allocationScore - a.r.allocationScore || a.r.id.localeCompare(b.r.id);
   const trials = [];
@@ -85,11 +96,10 @@ export function allocate(candidates, input = {}) {
       const options = optionsFor(remaining, seen, itemsLeft).sort(compare(mode));
       if (!options.length) break;
       const option = positions.length === 0 && seed ? options.find(o => o.r.id === seed) || options[0] : options[0];
-      const { r, quantity, cost } = option;
+      const { r, quantity, cost, hours } = option;
       seen.add(r.id);
       remaining -= cost;
       itemsLeft -= quantity;
-      const hours = r.hours == null ? null : r.queueHours + (r.hours - r.queueHours) * quantity / r.quantity;
       positions.push({ ...r, quantity, hours, capital: quantity * r.buy,
         total: quantity * r.profit, allocationPercent: quantity * r.buy / s.budget * 100,
         capacity: r.quantity });
@@ -99,24 +109,33 @@ export function allocate(candidates, input = {}) {
     return positions;
   }
   const initial = optionsFor(availableUnits, new Set());
-  const modes = compactNpc ? ['gain', 'rate', 'capital', 'compact'] : ['gain', 'rate', 'capital'];
+  const modes = npc
+    ? compactNpc ? ['gain', 'rate', 'capital', 'compact'] : ['gain', 'rate', 'capital']
+    : ['gain', 'rate', 'capital', 'weightedGain', 'weightedCapital'];
   const seeds = new Set(modes.flatMap(mode => [...initial].sort(compare(mode)).slice(0, 8).map(o => o.r.id)));
   for (const mode of modes) trials.push(build(mode));
-  for (const seed of seeds) trials.push(build('gain', seed), build('rate', seed));
+  for (const seed of seeds) {
+    for (const mode of npc ? ['gain', 'rate'] : ['gain', 'rate', 'weightedGain', 'weightedCapital']) {
+      trials.push(build(mode, seed));
+    }
+  }
   const utility = rows => totalOf(rows, 'total') / (1 + totalOf(rows, 'quantity') / 64);
   trials.sort((a, b) => compactNpc
     ? utility(b) - utility(a) || totalOf(a, 'quantity') - totalOf(b, 'quantity') || totalOf(b, 'total') - totalOf(a, 'total')
     : !npc && s.allocationGoal === 'budget'
-      ? totalOf(b, 'capital') - totalOf(a, 'capital') || totalOf(b, 'total') - totalOf(a, 'total') || a.length - b.length
-      : totalOf(b, 'total') - totalOf(a, 'total') || a.length - b.length || totalOf(b, 'capital') - totalOf(a, 'capital'));
+      ? weightedTotal(b, 'capital') - weightedTotal(a, 'capital') || weightedTotal(b, 'total') - weightedTotal(a, 'total') ||
+        totalOf(b, 'capital') - totalOf(a, 'capital') || totalOf(b, 'total') - totalOf(a, 'total') || a.length - b.length
+      : (npc ? 0 : weightedTotal(b, 'total') - weightedTotal(a, 'total')) ||
+        totalOf(b, 'total') - totalOf(a, 'total') || a.length - b.length || totalOf(b, 'capital') - totalOf(a, 'capital'));
   const positions = (trials[0] || []).sort((a, b) => b.total - a.total);
   const invested = positions.reduce((sum, r) => sum + r.capital, 0);
   const profit = positions.reduce((sum, r) => sum + r.total, 0);
   const maxTrialCapital = Math.max(0, ...trials.map(rows => totalOf(rows, 'capital')));
-  return { positions, invested, profit, remaining: Math.max(0, s.budget - invested),
+  return { positions, invested, profit, minimumPositionProfit, remaining: Math.max(0, s.budget - invested),
     unused: Math.max(0, s.budget - invested),
     quantity: totalOf(positions, 'quantity'), eligibleCount: ranked.length,
-    modelCapital: ranked.reduce((sum, r) => sum + Math.min(r.quantity, s.maxQuantity) * r.buy, 0),
+    modelCapital: npc ? ranked.reduce((sum, r) => sum + Math.min(r.quantity, s.maxQuantity) * r.buy, 0)
+      : totalOf(initial, 'capital'),
     objectiveLeavesCapital: maxTrialCapital > invested + .01,
     itemCapActive: ranked.some(r => Math.min(r.quantity, s.maxQuantity) * Math.ceil(r.buy * 100) > itemCapUnits),
     positionCapActive: positions.length >= s.maxPositions && ranked.some(r => !positions.some(p => p.id === r.id)),

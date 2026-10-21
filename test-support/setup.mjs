@@ -44,6 +44,26 @@ document.querySelector('#npc-limit').addEventListener('click', () => run(async (
   localStorage.setItem('bazaar-profiles', JSON.stringify(saveProfiles(profiles)));
   await fixture({ mode: 'npclimit', itemsAge: 0 });
 }, 'NPC-Mehrpositionslimit vorbereitet. Erwartung:30Stück,300Coins Einsatz,60Coins Gewinn.'));
+for (const button of document.querySelectorAll('[data-quality]')) button.addEventListener('click', () => run(async () => {
+  // Save the established version-2 profile format, including existing goal values.
+  const profiles = restoreProfiles(null, null);
+  const scenario = button.dataset.quality;
+  Object.assign(profiles.plan, { budget: scenario === '40m' ? 40e6 : 10e6, maxPositions: 1,
+    maxQuantity: 100, allocationGoal: 'budget' });
+  let mode = scenario === 'buy' ? 'qualitybuy' : scenario === 'sell' ? 'qualitysell'
+    : scenario === 'tiny' ? 'qualitytiny' : 'quality';
+  if (scenario === 'rest') {
+    mode = 'qualityrest';
+    Object.assign(profiles.plan, { maxQuantity: 10000, maxPositions: 2, allocationGoal: 'profit' });
+  }
+  if (scenario === 'partial') {
+    mode = 'qualitypartial';
+    Object.assign(profiles.plan, { budget: 10000, maxAllocation: 25, horizon: 10, tick: 0 });
+  }
+  localStorage.setItem('bazaar-profiles', JSON.stringify(saveProfiles(profiles)));
+  await fixture({ mode, itemsAge: 0, itemsMode: 'success', apiMode: 'success',
+    marketAge: 0, refreshSeconds: 60, nextSeconds: 60, freeze: false, clearSnapshot: true });
+}, `Qualitätsprüfung ${button.dataset.quality} mit gespeichertem Planprofil vorbereitet. Zur Anwendung wechseln.`));
 for (const button of document.querySelectorAll('[data-mode]')) button.addEventListener('click', () => run(
   () => fixture({ mode: button.dataset.mode }), `Datensatz ${button.dataset.mode} aktiv.`));
 for (const button of document.querySelectorAll('[data-age]')) button.addEventListener('click', () => run(

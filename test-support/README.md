@@ -40,6 +40,42 @@ Profilen. `bazaar-favorites` bleibt global. Für Migration nur im isolierten
 Testbrowser neue Profile entfernen und Legacy-Daten setzen; keine produktiven
 Browserdaten löschen.
 
+## Gewinnschwelle und schnelle Bazaar-Zyklen
+
+Auf `/__setup` stehen sichtbare Buttons bereit, die vollständige gespeicherte
+Version-2-Profile mit den bisherigen Zielwerten `budget`/`profit` vorbereiten.
+Danach **Zur Anwendung →** und **Investitionsplan** öffnen. Keine privaten
+Browserzustände müssen per Skript geändert werden; die Merkliste bleibt erhalten.
+Alle Preise und Flüsse sind kontrollierte Testdaten, keine Live-Kurse.
+
+| Setup-Button | Vorgaben | Erwarteter Plan |
+|---|---|---|
+| Qualität ·10M Bestandsprofil | Budget10M, maxQuantity100, maxPositions1, Zielbudget | Nur Zügiger Umlauf:100Stück,1M Einsatz,100.000 Gewinn,1h;9M frei; Schwelle5.000Coins. |
+| Qualität ·40M Bestandsprofil | Wie oben, Budget40M | Gleiche Position;39M frei; Schwelle20.000Coins. |
+| Tempo ·langsame Buy-Seite | 10M-Profil, FAST gegen SLOW_BUY plus Bagatelle | FAST wie oben; langsamere Alternative hätte120.000 Gewinn/1,2M Einsatz/5,5h. |
+| Tempo ·langsame Sell-Seite | Entsprechend gegen SLOW_SELL | Ebenfalls FAST; langsame Verkaufsseite zählt genauso wie langsame Einkaufsseite. |
+| Nur Bagatellen ·10M | 100Stück mit zusammen etwa100Coins Gewinn, weiterhin analyseseitig zulässig | Leerer Plan,10M frei, CSV deaktiviert; Leertext nennt5.000Coins/0,05 %. |
+| Restbudget unter Gewinnschwelle | 10M, maxQuantity10.000, maxPositions2, Zielprofit | Nur Große Hauptposition:99Stück,9,9M Einsatz,297.000 Gewinn,24h;100.000Coins frei. Zweite Position hätte mit Restbudget100Stück/2.000 Gewinn und entfällt unter5.000. |
+| Teilmenge25 ·Wartezeit2h ·Dauer4h | Budget10.000, maxAllocation25 %, horizon10, tick0, maxQuantity100 |25Stück,2.500 Einsatz,462,5 Gewinn,4h;7.500 frei; Schwelle5Coins. |
+
+Bei den vier Tempo-/Budget-Szenarien beide Ziele umschalten: **Budget & schnelle
+Füllung** und **Nettogewinn & schnelle Füllung** wählen jeweils FAST. Das
+Bestandsprofil wird ohne Reset angewandt. Seite neu laden und Plan erneut öffnen:
+Budget, Ziel und Filter bleiben bestehen. Die Bagatelle hätte bei maxQuantity100
+etwa100Coins Nettogewinn und ist auch in der Analyse zulässig; erst die
+Plan-Positionsschwelle schließt sie aus. `mode=quality`, `qualitybuy`, `qualitysell`,
+`qualitytiny`, `qualityrest` und `qualitypartial` sind die entsprechenden
+Fixture-Modi; der Moduswechsel allein setzt keine Profile.
+
+Beim Teilmengenszenario Details öffnen: die geplante Menge25, Einsatz2.500,
+Gewinn462,5 und Zeit4h müssen zur Planzeile passen. Die separate
+Kapazitätsalternative hat100Stück/10.000Coins/10h und ist keine weitere Order.
+Rechnung: Queue2h +8h×25/100 =4h; Gewicht1/(1+4/6)=0,6. Netto je Item ist
+120×0,9875−100=18,5. Export **Plan als CSV**: `quantity=25.0000`,
+`capital=2500.0000`, `total=462.5000`, `hours=4.0000`. Der interne Nutzengewinn
+277,5 erscheint weder als Coin-Gewinn noch in den CSV-Spalten. Anschließend
+NPC-Mehrpositionslimit und feste Marktübersicht als Regression prüfen.
+
 ## Sichtbare Vorbereitung im Browser
 
 `/__setup` ist ausschließlich im Offline-Fixture-Server verfügbar. Dort können

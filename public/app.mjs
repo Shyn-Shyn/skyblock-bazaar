@@ -98,7 +98,7 @@ function compute() {
   $('#matches-description').textContent = activeView === 'scanner' ? 'Nach festen Vergleichsannahmen' : 'Nach deinen Planfiltern';
   const goal = activeView === 'scanner' ? 'Alternative Einzel-Flips' : s.destination === 'npc'
     ? s.npcPreference === 'compact' ? 'Wenige Stück bevorzugen' : 'Nettogewinn'
-    : s.allocationGoal === 'budget' ? 'Budget ausschöpfen' : 'Nettogewinn';
+    : s.allocationGoal === 'budget' ? 'Budget & schnelle Füllung' : 'Nettogewinn & schnelle Füllung';
   $('#strategy-preset').textContent = `${goal} · ${fmt(s.horizon)} Std. · ${fmt(s.share)} % Marktanteil${activeView === 'plan' ? ` · bis zu ${s.maxPositions} Items` : ''}. Durchsatz und Orderbuch begrenzen die Mengen.`;
   if (!data?.products) return;
   for (const view of ['scanner', 'plan']) {
@@ -126,8 +126,11 @@ function renderPlan() {
       ? 'Wenige Stück bevorzugen: Die Varianten werden nach Nettogewinn / (1 + Gesamtstückzahl / 64) gewichtet. Weniger Verkaufsaufwand kann weniger Coin-Gewinn und freies Budget bedeuten. 64 ist nur eine Heuristik-Skalierung; keine Verkaufszeit wird geschätzt.'
       : 'NPC-Ziel Nettogewinn: höchster berechneter Nettogewinn unter deinem Gesamtstücklimit.'
     : s.allocationGoal === 'budget'
-      ? 'Budget ausschöpfen: Die verglichenen Varianten werden zuerst nach eingesetzten Coins, danach nach Nettogewinn gewählt. Dadurch kann der Gewinn geringer sein als beim Gewinnziel.'
-      : 'Nettogewinn: Die verglichenen Varianten werden zuerst nach berechnetem Nettogewinn gewählt. Dafür kann Budget frei bleiben.';
+      ? 'Budget & schnelle Füllung: Die verglichenen Varianten priorisieren zeitgewichteten Kapitaleinsatz, danach zeitgewichteten Nettogewinn. Dafür können Budget frei und Coin-Gewinne geringer bleiben.'
+      : 'Nettogewinn & schnelle Füllung: Die verglichenen Varianten priorisieren zeitgewichteten Nettogewinn. Ein zügigerer Umlauf kann weniger Coin-Gewinn und freies Budget bedeuten.';
+  if (s.destination === 'bazaar') {
+    $('#plan-goal-description').textContent += ` Pro Position mindestens ${fmt(plan.minimumPositionProfit)} Coins Nettogewinn (0,05 % deines Gesamtbudgets), auch nach Teilzuteilung. Gewicht je Position: 1 / (1 + Modellzeit / 6 Std.) für Einkauf und anschließenden Verkauf zusammen. 6 Std. sind eine Heuristik-Skalierung; kein Zeitlimit. Angezeigt werden echte Modellgewinne ohne Zeitabschlag. Schnelle Füllungen oder selteneres Nachstellen sind nicht garantiert.`;
+  }
   $('#export-plan').disabled = !plan.positions.length;
   $('#plan-rows').innerHTML = plan.positions.map(r => `<tr>
     <td><button class="item-button" data-detail="${esc(r.id)}">${esc(r.name)}${r.warnings.length ? '<span class="risk-dot" title="Risikohinweise in den Details">◇</span>' : ''}</button></td>
@@ -138,7 +141,9 @@ function renderPlan() {
   if (plan.unused > .01) {
     if (plan.objectiveLeavesCapital) reasons.push(s.destination === 'npc' && s.npcPreference === 'compact'
       ? 'Das Aufwandziel bevorzugt weniger Stücke gegenüber einer stärker investierten Vergleichsvariante.'
-      : 'Das Gewinnziel bevorzugt mehr Nettogewinn gegenüber einer stärker investierten Vergleichsvariante.');
+      : s.destination === 'npc' ? 'Das Gewinnziel bevorzugt mehr Nettogewinn gegenüber einer stärker investierten Vergleichsvariante.'
+        : 'Die Tempogewichtung bevorzugt diese Aufteilung gegenüber einer stärker investierten Vergleichsvariante.');
+    if (s.destination === 'bazaar') reasons.push(`Positionen unter ${fmt(plan.minimumPositionProfit)} Coins Nettogewinn (0,05 % des Gesamtbudgets) werden auch bei Restmengen ausgelassen.`);
     if (s.destination === 'npc' && plan.quantity >= s.maxNpcItems) reasons.push(`NPC-Gesamtstücklimit ${integer.format(s.maxNpcItems)} erreicht.`);
     if (plan.positionCapActive) reasons.push(`Positionslimit ${s.maxPositions} erreicht; weitere Kandidaten bleiben außerhalb des Plans.`);
     if (plan.itemCapActive) reasons.push(`Je Item höchstens ${fmt(s.maxAllocation)} % (${fmt(s.budget * s.maxAllocation / 100)} Coins).`);
@@ -147,7 +152,9 @@ function renderPlan() {
   }
   $('#plan-summary').textContent = plan.positions.length
     ? `${plan.positions.length} Items · ${fmt(plan.invested / s.budget * 100)} % deines Planbudgets zugeteilt · ${integer.format(plan.quantity)} Stück gesamt · ${fmt(plan.roi)} % Netto-ROI. ${plan.unused > .01 ? `${fmt(plan.unused)} Coins frei. ${reasons.join(' ')}` : 'Budget vollständig zugeteilt.'} Stand: ${new Date(data.lastUpdated).toLocaleTimeString('de-DE')}.`
-    : 'Keine passenden, bezahlbaren Plan-Kandidaten innerhalb deiner Filter und Mengenlimits. Planfilter, Budget oder Anteil je Item prüfen. Es wird keine Reserve abgezogen.';
+    : s.destination === 'npc'
+      ? 'Keine passenden, bezahlbaren Plan-Kandidaten innerhalb deiner Filter und Mengenlimits. Planfilter, Budget oder Anteil je Item prüfen. Es wird keine Reserve abgezogen.'
+      : `Keine passenden, bezahlbaren Planpositionen mit mindestens ${fmt(plan.minimumPositionProfit)} Coins Nettogewinn (0,05 % deines Gesamtbudgets) innerhalb deiner Filter und Mengenlimits. Planfilter, Budget oder Anteil je Item prüfen. Die Tempogewichtung berücksichtigt beide Schritte; es wird keine Reserve abgezogen.`;
 }
 function render() {
   const query = $('#search').value.toLocaleLowerCase();

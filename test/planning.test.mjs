@@ -36,7 +36,7 @@ test('NPC total quantity cap is shared across positions and objectives', () => {
   }
   const one = allocate([row('A'), row('B')], { destination: 'npc', maxNpcItems: 1 });
   assert.equal(one.quantity, 1);
-  assert.equal(allocate([row('A')], { maxNpcItems: 1 }).quantity, 100);
+  assert.equal(allocate([row('A')], { budget: 1000, maxNpcItems: 1 }).quantity, 100);
 });
 test('NPC compact preference chooses actual smaller quantity without relabeling utility as profit', () => {
   const rows = [row('compact', { buy: 100, quantity: 10, profit: 20 }),
