@@ -19,9 +19,11 @@ Die App bietet eine deutschsprachige Weboberfläche im Minecraft-inspirierten De
 
 ## Funktionen
 
-### Alle Flips
+### Marktübersicht
 
-Der Scanner zeigt passende Items mit Kauf- und Verkaufspreisen, Nettogewinn, Rendite, modellierter Kaufmenge und geschätzter Dauer. Suche, Sortierung und Merkliste helfen beim Vergleichen. Ein Klick auf ein Item öffnet Details zum Orderbuch und zur Berechnung. Die gefilterten Ergebnisse lassen sich als CSV exportieren.
+Der erste Reiter zeigt allgemeine Flip-Kandidaten mit Kauf- und Verkaufspreisen, Nettogewinn, Rendite und modellierter Kaufmenge. Suche, Sortierung und Merkliste helfen beim Vergleichen. Ein Klick öffnet Orderbuch und Berechnung; Ergebnisse lassen sich als CSV exportieren. Budget- und Strategieeingaben befinden sich ausschließlich im Investitionsplan.
+
+Alle Kandidaten werden als alternative Einzelpositionen mit einer festen Vergleichsbasis bewertet: **1 Mio. Coins Referenzbudget**, **1 Stunde**, **1 % angenommener Marktanteil**, 2–50 % Netto-ROI, mindestens 1.000 Items/Tag je benötigter Seite, höchstens sechs Stunden Orderdruck, 0,1 Coins Tick und maximal 71.680 Stück. Angenommene Bazaar-Steuer: 1,25 %. Das Referenzbudget ist keine persönliche Budgetvorgabe; eigene Planfilter verändern diese Übersicht nicht. Die bestehende Empfehlung gewichtet Positionsgewinn und Orderdruck und garantiert keine tatsächlichen Gewinne oder Füllungen.
 
 Zwei Verkaufsziele stehen zur Auswahl:
 
@@ -34,7 +36,7 @@ Der Einkauf erfolgt in beiden Fällen per Buy-Order, nicht als Sofortkauf.
 
 Budget eingeben, Verkaufsziel auswählen und die vorgeschlagene Aufteilung prüfen. Eingaben wie `1M`, `10M`, `1,5M` oder `500K` werden automatisch als Coins interpretiert.
 
-- Eigene Filter und eigenes Budget, unabhängig vom Reiter **Alle Flips**.
+- Eigenes Budget und eigene Filter, unabhängig von der festen **Marktübersicht**.
 - Standardmäßig höchstens **zwölf verschiedene Items** und **24 Stunden** Planungszeitraum.
 - Bis zu **100 % des Budgets in einem Item**, sofern die Modellgrenzen das erlauben.
 - Keine eingeplante Reserve. Ganze Stückzahlen, Durchsatz und Positionslimits können Restbeträge verursachen.
@@ -43,9 +45,9 @@ Budget eingeben, Verkaufsziel auswählen und die vorgeschlagene Aufteilung prüf
 - Anzeige von Kaufmengen, Einsatz, Budgetanteilen, Nettogewinn und geschätzter Dauer.
 - Eigener CSV-Export für den Plan.
 
-Unter **Strategie anpassen** lassen sich unter anderem Itemanzahl, Budgetanteil je Item, Renditefilter, Steuer, Zeithorizont und Liquiditätsannahmen ändern. Die Startwerte sind:
+Im Investitionsplan lassen sich unter **Strategie anpassen** unter anderem Itemanzahl, Budgetanteil je Item, Renditefilter, Steuer, Zeithorizont und Liquiditätsannahmen ändern. Vergleichsbasis und Plan-Startwerte:
 
-| Einstellung | Alle Flips | Investitionsplan |
+| Einstellung | Marktübersicht (fest) | Investitionsplan (anpassbar) |
 |---|---:|---:|
 | Maximal verschiedene Items im Plan | — | 12 |
 | Maximaler Budgetanteil je Item im Plan | — | 100 % |
@@ -56,7 +58,7 @@ Unter **Strategie anpassen** lassen sich unter anderem Itemanzahl, Budgetanteil 
 | Maximaler Orderdruck | 6 Stunden | 6 Stunden |
 | Bazaar-Verkaufssteuer | 1,25 % | 1,25 % |
 
-Die Filter werden je Reiter getrennt gespeichert; **Zurücksetzen** betrifft nur die aktive Ansicht. Verteilungslimits gelten nur für den Investitionsplan. Suche, Merkliste und Sortierung im Scanner ändern den Plan nicht. Die Merkliste bleibt gemeinsam gespeichert. Bei der einmaligen Übernahme älterer Einstellungen behält der Scanner sämtliche Filter; der Plan übernimmt nur Budget, Steuer und Verkaufsziel und startet ansonsten mit seinen eigenen Vorgaben.
+**Zurücksetzen** betrifft ausschließlich den Investitionsplan. Seine Filter, Budget und Ziele werden gespeichert und bleiben bei der Umstellung erhalten. Die Marktübersicht speichert nur ihr eigenes Verkaufsziel; alte Scannerbudgets und Strategieparameter beeinflussen sie nicht mehr. Suche, Merkliste und Sortierung ändern den Plan nicht. Bei erstmaliger Übernahme älterer Einstellungen übernimmt der Plan Budget, Steuer und Verkaufsziel und startet ansonsten mit seinen eigenen Vorgaben.
 
 Freies Budget wird mit den relevanten Modellgrenzen erläutert: Zeit/Marktanteil und Einzelkapazitäten, Item-/Positionslimits, ganze Stücke sowie NPC-Stücklimit oder Zielabwägung. Ein höherer Zeithorizont kann mehr Menge ermöglichen, erhöht aber das Preisänderungsrisiko. Keine Einstellung garantiert vollständige Budgetnutzung oder Ausführung.
 
@@ -72,10 +74,14 @@ Die App verwendet die öffentlichen Endpunkte der [Hypixel-API](https://api.hypi
 Für diese App ist kein Hypixel-API-Key erforderlich. Die Abrufe erfolgen zentral über den App-Server; mehrere Browser teilen sich dessen Cache.
 
 - Bazaar-Daten werden standardmäßig alle **60 Sekunden** abgefragt. Das Intervall lässt sich erhöhen.
-- Itemnamen und NPC-Preise werden nach erfolgreichem Abruf täglich aktualisiert.
+- Itemnamen und NPC-Preise werden nach erfolgreichem Abruf **stündlich geprüft**; bei Fehlern frühestens nach einer Stunde bzw. einem längeren `Retry-After` erneut. Letzte gültige Daten bleiben erhalten.
 - Bei API-Fehlern verlängert sich die Wartezeit automatisch; ein `Retry-After` wird berücksichtigt.
-- Die Oberfläche zeigt Datenstand, Aktualisierungs-Countdown und Warnungen bei veralteten Daten.
-- Der manuelle Aktualisieren-Button umgeht das serverseitige Abfrageintervall nicht.
+- Die Oberfläche zeigt Hypixel-Quellstand, laufendes Datenalter, automatische nächste Prüfung und Warnungen bei veralteten Daten. Es gibt keinen manuellen Aktualisieren-Button.
+- Im NPC-Modus sind letzte erfolgreiche Itemdatenprüfung, nächste Prüfung, gegebenenfalls Fehler und der separate Ressourcen-Quellstand sichtbar. Ein erfolgreicher Abruf bedeutet nicht, dass Hypixel neue Quelldaten veröffentlicht hat.
+
+Am 21.10.2026 lieferte der offizielle Bazaar-Endpunkt `Cache-Control: public,max-age=60,s-maxage=300`. Eine Minute bleibt deshalb die gewählte App-Vorgabe: Zwei bis drei Minuten reduzieren die Abfragen von 60 auf 30 bzw. 20 pro Stunde und Server, können Änderungen aber später erkennen. Die Itemressourcen lieferten `s-maxage=604800`; auch stündliche Prüfungen können denselben Quellstand liefern. Cache-Header können sich ändern und garantieren keine Aktualisierungsfrequenz.
+
+Namen aus den offiziellen Itemressourcen werden mit ihrer Originalreihenfolge verwendet und von Formatcodes befreit. Fehlt ein Name, wird beispielsweise `SHARD_SKELETON` als `Skeleton Shard` und `SHARD_CARROT_KING` als `Carrot King Shard` angezeigt. Diese typgebundene Fallback-Konvention behebt vertauschte Wörter, garantiert aber nicht die exakte aktuelle In-Game-Schreibweise jeder fehlenden ID.
 
 Das gewählte Intervall ist eine Einstellung der App, keine von Hypixel garantierte Abfragerate.
 
@@ -215,6 +221,6 @@ Die App selbst stellt HTTP bereit und besitzt keinen eigenen Login. HTTPS und ge
 - **Port bereits belegt:** Linke Portnummer der Zuordnung ändern und den Container neu bereitstellen.
 - **Image kann nicht geladen werden:** Image-Pfad, Tag und Registry-Zugriff prüfen.
 - **Keine Marktdaten:** Container-Logs sowie ausgehendes HTTPS und DNS prüfen. Bei Hypixel-Störungen werden vorhandene Daten mit Warnung weiter angezeigt.
-- **Keine passenden Flips:** Filter, Suchbegriff und Merkliste prüfen; gegebenenfalls Budget oder Zeithorizont anpassen.
+- **Keine passenden Flips:** In der Marktübersicht Verkaufsziel, Suche und Merkliste prüfen. Im Investitionsplan zusätzlich Filter, Budget und Zeithorizont prüfen.
 
 Skyblock Exchange ist ein unabhängiges Community-Projekt und nicht mit Mojang oder Hypixel verbunden.

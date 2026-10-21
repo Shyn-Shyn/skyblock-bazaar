@@ -11,7 +11,7 @@ Es gibt keine generische Freigabe des public-Verzeichnisses mehr. Nur die API
 und die Teststeuerung sind Fixture-spezifisch. Die kontrollierten Daten sind
 keine echten Kurse.
 `/__fixture?mode=capacity`, `mode=goals`, `mode=npc` oder `mode=all` stellt den
-Datensatz serverseitig um; danach in der Anwendung „Daten aktualisieren“ klicken.
+Datensatz serverseitig um; danach Browserseite neu laden oder Automatik abwarten.
 Der Kontrollendpunkt antwortet mit der aktiven Einstellung. `itemsAge=48`
 simuliert mindestens 48 Stunden alte Itemdaten, `itemsAge=0` frische.
 Keinen Produktserver (`node server.mjs`) für diese Offline-Prüfung starten.
@@ -27,8 +27,9 @@ Erwartungen nach Zurücksetzen beider Profile:
 - `npc`: Im Plan Verkaufsziel NPC, Budget1000, maxPositions1, Limit2048 setzen.
   COMPACT: Einkauf100/NPC120, 10 Stück/Gewinn200. MASS: Einkauf1/NPC1,3,
   1000 Stück/Gewinn300. „Wenige Stück bevorzugen“ COMPACT, „Nettogewinn“ MASS.
-- Verschiedene Budgets/Ziele/ROI in beiden Reitern ändern; mehrfach und per
-  Pfeiltasten wechseln; Reload/Reset/ungültiges Budget/CSV und Itemdetails prüfen.
+- Budget/Ziel/ROI im Plan ändern; Übersicht behält feste Referenzwerte.
+  Mehrfach und per Pfeiltasten wechseln; Reload/Planreset/ungültiges Budget/CSV
+  und Itemdetails prüfen. Die Übersicht hat ausschließlich ihre eigene Zielwahl.
 - Bei NPC-Limit30/maxAllocation20 und beiden Positionen kann das globale Limit
   über mehrere Positionen sichtbar werden; isolierte exakte Beispielprüfung
   steht zusätzlich in `test/planning.test.mjs` (zwei gleiche10-Coin-Kandidaten).
@@ -65,10 +66,10 @@ ist auch als `mode=npclimit` verfügbar.
 - **Initialer API-Fehler ·503**: setzt API-Modus `unavailable` und verwirft den
   Test-Snapshot. Anwendung neu öffnen: Module und UI müssen starten, dann
   „Verbindung gestört“ und verständlichen Fehler mit Wiederholung nach60Sekunden
-  zeigen. Anschließend API-Erfolg wählen und in der App aktualisieren.
+  zeigen. Anschließend API-Erfolg wählen und automatischen Versuch abwarten.
 - **Aktualisierungsfehler mit Snapshot**: vorher einmal erfolgreich Daten
   laden, dann Modus `snapshot-error` aktivieren und in der Anwendung
-  aktualisieren. Der letzte Snapshot samt Zeilen bleibt erhalten und die
+  automatisch nachladen lassen. Der letzte Snapshot samt Zeilen bleibt erhalten und die
   Aktualisierungswarnung erscheint. Ohne bisherigen Snapshot liefert auch
   dieser Modus503.
 
@@ -83,3 +84,30 @@ ohne Listener oder Netzwerk: rekursiven Modulgraph aus HTML/Imports,
 GET-/HEAD-Status, exakten Dateiinhalt, MIME-/Sicherheitsheader, CSS/Icon/healthz,
 404/405 und gesperrte Repo-/Dot-/Pfadausbruch-Ziele. Damit fallen künftig
 vergessene modulare Browserdateien in der Produktions-Allowlist direkt auf.
+
+## Marktübersicht, Metadaten und schnelle Automatikprobe
+
+Alle folgenden Szenarien sind auf `/__setup` per sichtbarem Button wählbar:
+
+- **Alte extreme Scannerfilter vorbereiten** setzt ein Version-1-Profil mit
+  Budget1, Horizont168h, Steuer20%, Mindest-ROI9999. Die Übersicht muss dennoch
+  TEST_ITEM mit6Stück/Einsatz600,6/Gewinn109,8075 zeigen. Der Standardplan bleibt.
+- **Shard-Namen** (`mode=names`): Skeleton Shard und Carrot King Shard ohne
+  Ressourcennamen; Official Skeleton Shards mit Formatcode aus der Fixture.
+  Namen in Suche, Plan, Details und CSV vergleichen.
+- **Pagination ·60Items** (`mode=many`): zunächst50Zeilen, dann60; Suche,
+  Sortierung und Merkliste dürfen weiterhin nur die Übersicht beeinflussen.
+- **Metadatenfehler mit letzten Preisen** (`itemsMode=error`) und **Keine
+  Metadaten** (`itemsMode=missing`): beide NPC-Ansichten prüfen. Ein eine Woche
+  alter Quellstand bei erfolgreicher aktueller Prüfung ist normal in der Fixture.
+- **Quellstand10Minuten alt**, **Konfiguriert ·3Minuten** und **Backoff
+  ·10Minuten** prüfen Alter/Warnung/Countdown; Status im Setup zeigt die Werte.
+- **Automatikprobe ·2Sekunden ·gleicher Quellstand** lässt die Fixture ein
+  nächstes Nachladen nach2Sekunden vorgeben (Browser wartet zusätzlich1,5s).
+  Diese Beschleunigung gilt nur für die Offline-Fixture. Der Produktionsserver
+  bleibt bei mindestens60Sekunden. Im zweiten Tab die App offen halten und im
+  Setup Erfolg/503/Folgefehler umschalten: Dadurch können Wiederholung, Erholung
+  und letzter Snapshot ohne manuelles Refresh-Bedienelement geprüft werden.
+
+**Beide Testprofile und Fixture zurücksetzen** setzt diese Vorgaben zurück und
+erhält die Merkliste. Keine Produktionsdaten oder Live-Preise werden verwendet.

@@ -1,19 +1,16 @@
 import http from 'node:http';
 import { createPollGate, retryDelay } from './polling.mjs';
 import { serveStatic } from './http-assets.mjs';
+import { createItemsCache } from './items-cache.mjs';
 
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '0.0.0.0';
 const refreshMs = Math.max(60, Number(process.env.REFRESH_SECONDS) || 60) * 1000;
 const pollGate = createPollGate(refreshMs);
 let snapshot = null;
-let names = {};
-let npcPrices = {};
-let itemsFetchedAt = null;
-let itemsError = null;
+const itemsCache = createItemsCache(getJson);
 let lastError = null;
 let pending = null;
-let nextNames = 0;
 
 async function getJson(path) {
   const response = await fetch(`https://api.hypixel.net/v2/${path}`, {
@@ -55,32 +52,13 @@ async function refresh() {
   return pending;
 }
 
-async function refreshNames() {
-  if (Date.now() < nextNames) return;
-  nextNames = Date.now() + 3600000;
-  try {
-    const data = await getJson('resources/skyblock/items');
-    if (!Array.isArray(data.items) || !data.items.length) throw new Error('Ungültige Itemdaten');
-    names = Object.fromEntries(data.items.filter(i => typeof i.id === 'string' && typeof i.name === 'string')
-      .map(i => [i.id, i.name.replace(/§./g, '')]));
-    npcPrices = Object.fromEntries(data.items.filter(i => typeof i.id === 'string' &&
-      Number.isFinite(i.npc_sell_price) && i.npc_sell_price > 0).map(i => [i.id, i.npc_sell_price]));
-    itemsFetchedAt = Date.now();
-    itemsError = null;
-    nextNames = Date.now() + 86400000;
-  } catch (error) {
-    itemsError = 'NPC-Preise konnten nicht aktualisiert werden';
-    nextNames = Date.now() + Math.max(3600000, error.retryAfter || 0);
-  }
-}
-
 const server = http.createServer(async (req, res) => {
   if (await serveStatic(req, res)) return;
   try {
     await refresh();
     const stale = !snapshot || Date.now() - snapshot.lastUpdated > Math.max(180000, refreshMs * 3);
     const status = snapshot ? 200 : 503;
-    const body = JSON.stringify({ ...snapshot, names, npcPrices, itemsFetchedAt, itemsError,
+    const body = JSON.stringify({ ...snapshot, ...itemsCache.snapshot(),
       stale, error: lastError, refreshSeconds: refreshMs / 1000, nextRefreshAt: pollGate.next });
     res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(req.method === 'HEAD' ? undefined : body);
@@ -92,9 +70,9 @@ const server = http.createServer(async (req, res) => {
 server.listen(port, host, () => {
   console.log(`Bazaar Flipper: http://localhost:${port}`);
   void refresh();
-  void refreshNames();
+  void itemsCache.refresh();
 });
-const timer = setInterval(() => { void refresh(); void refreshNames(); }, 1000);
+const timer = setInterval(() => { void refresh(); void itemsCache.refresh(); }, 1000);
 function shutdown() { clearInterval(timer); server.close(); }
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);

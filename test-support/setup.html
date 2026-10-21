@@ -8,14 +8,23 @@
 <button id="legacy">Legacy-Migration AC-02 vorbereiten</button>
 <button id="defaults">Beide Testprofile und Fixture zurücksetzen</button>
 <button id="npc-limit">NPC-Mehrpositionslimit vorbereiten</button>
+<button id="old-scanner">Alte extreme Scannerfilter vorbereiten</button>
 <p>Legacy: Budget1.234.567, Steuer1,8%, NPC, Horizont3h, Mindest-ROI7%; neue Profile entfernen. Erwarteter Plan:24h/ROI2/12Positionen mit übernommenem Budget/Ziel/Steuer. Die Merkliste bleibt erhalten.</p>
 <p>Mehrpositionslimit: NPC-Plan, Budget1000, Limit30, maximal20% je Item; zwei10-Coin-Items. Erwartet30Stück über zwei Positionen, Einsatz300/Gewinn60. Scanner bleibt auf eigenen Defaults.</p></section>
 <section><h2>Fixture-Datensatz</h2>
-<button data-mode="all">Alle Fixtures</button><button data-mode="capacity">Kapazität</button><button data-mode="goals">Bazaar-Zielvergleich</button><button data-mode="npc">NPC-Kompaktvergleich</button><button data-mode="npclimit">NPC-Mehrpositionslimit</button>
+<button data-mode="all">Alle Fixtures</button><button data-mode="capacity">Kapazität</button><button data-mode="goals">Bazaar-Zielvergleich</button><button data-mode="npc">NPC-Kompaktvergleich</button><button data-mode="npclimit">NPC-Mehrpositionslimit</button><button data-mode="names">Shard-Namen</button><button data-mode="many">Pagination ·60Items</button>
 <h2>Alter der NPC-Itemdaten</h2><button data-age="0">Frische Itemdaten ·0h</button><button data-age="48">Veraltete Itemdaten ·48h</button>
-<p>Danach zur Anwendung wechseln und bei bereits geöffneten Ansichten „Daten aktualisieren“ klicken.</p></section>
+<button data-items="success">Metadaten erfolgreich</button><button data-items="error">Metadatenfehler mit letzten Preisen</button><button data-items="missing">Keine Metadaten</button>
+<p>Metadaten-Quellstand liegt absichtlich eine Woche zurück. Aktuelle erfolgreiche Prüfung hält NPC-Flips dennoch nutzbar. Nach Änderung zur Anwendung wechseln oder automatisches Nachladen abwarten; alternativ die Browserseite neu laden.</p></section>
 <section><h2>API-Zustand für Produktionsstart-Prüfung</h2>
 <button data-api="success">API-Erfolg</button><button data-api="unavailable">Initialer API-Fehler ·503</button><button data-api="snapshot-error">Aktualisierungsfehler mit Snapshot</button>
-<p>Für initial503 den Fehler aktivieren und die Anwendung neu öffnen. Sie muss trotz Fehler vollständig starten und Wiederholung anbieten. Danach Erfolg aktivieren und „Daten aktualisieren“ nutzen. Für Snapshotfehler zuerst einmal erfolgreich Daten laden, danach den Snapshotfehler aktivieren und erneut aktualisieren. Nur die API-Antwort ist simuliert; HTML und Assets laufen durch den produktiven Handler.</p></section>
+<p>Für initial503 den Fehler aktivieren und die Anwendung neu öffnen. Sie muss trotz Fehler vollständig starten und automatisch erneut versuchen. Für Folgefehler Anwendung in einem zweiten Tab offen halten, hier Fehler aktivieren und dort automatisches Nachladen abwarten. Nur API-Antworten sind simuliert; HTML und Assets verwenden den Produktionshandler.</p></section>
+<section><h2>Datenalter und Automatik</h2>
+<button data-market="0">Aktueller Quellstand</button><button data-market="600">Quellstand10Minuten alt</button>
+<button data-timing='{"refreshSeconds":60,"nextSeconds":60,"freeze":false}'>Standard ·60Sekunden</button>
+<button data-timing='{"refreshSeconds":180,"nextSeconds":180,"freeze":false}'>Konfiguriert ·3Minuten</button>
+<button data-timing='{"nextSeconds":600}'>Backoff ·10Minuten</button>
+<button data-timing='{"refreshSeconds":60,"nextSeconds":2,"freeze":true}'>Automatikprobe ·2Sekunden ·gleicher Quellstand</button>
+<p>Die2Sekunden-Vorgabe gehört ausschließlich zur Offline-Fixture. Sie macht automatische Wiederholungen und Folgefehler schnell prüfbar. Die Produktionsanwendung bleibt bei mindestens60Sekunden.</p></section>
 <section><h2>Aktueller Testzustand</h2><button id="inspect">Zustand neu anzeigen</button><pre id="state"></pre></section>
 </body></html>
