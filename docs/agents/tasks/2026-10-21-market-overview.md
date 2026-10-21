@@ -1,6 +1,6 @@
 # 2026-10-21-market-overview: Allgemeine Flip-Übersicht und Datenpflege
 
-Status: LOCAL_ACCEPTED
+Status: DONE
 QA-Runden: 2 / 3
 Rollenmodus: native bazaar_product_owner, bazaar_developer, bazaar_qa, bazaar_release
 
@@ -17,6 +17,7 @@ Betroffen: Server/Polling, UI/Profile/Details, Namensauflösung, Dokumentation, 
 - Nach erfolgreichem fetch am 21.10.2026: HEAD = origin/main = f35005ce80423e13496b57d9690131851365f151.
 - Basiscommit: f35005ce80423e13496b57d9690131851365f151; neuer Featurebranch codex/market-overview.
 - Featureinhalt: vollständiger Diff gegen Basis plus neue Dateien,21Dateien gemäß Developer-/QA-Liste unten; freigegebenes Manifest a0e97a1167698f603ad7922f4aed138856ddc4acf3d731c3424636f3ec97c055. Ticket separat Hauptagent-Audit.
+- Freigegebener Produktcommit:81c9abe6684ff4ac4e4404cd33e393ac6dfb7fac. PR:https://github.com/Shyn-Shyn/skyblock-bazaar/pull/2 . Base unverändert f35005ce80423e13496b57d9690131851365f151. Dieser abschließende Ticket-Audit verändert keinen Produktinhalt; dessen separater Commit und aktuelle CI werden durch Release vor der Abschlussmeldung nachgeprüft und im Chat verknüpft.
 - Nutzerauftrag umfasst Feature, Branch-Push und PR nach main gemäß AGENTS.md; keine local-only-Grenze.
 - Konkretes Mergemandat: NICHT_BEAUFTRAGT. main-CI/Image: NICHT_BEAUFTRAGT.
 
@@ -243,9 +244,19 @@ Nach QA-PASS und PO-ACCEPTED: bazaar_release erhält Basis/Branch/Diff/Dateilist
 | Phase | Status | Nachweis |
 |---|---|---|
 | Lokale Freigabe | PASS | QA2-PASS,PO-ACCEPTED;Manifest a0e97a1167698f603ad7922f4aed138856ddc4acf3d731c3424636f3ec97c055;11Syntax/50Tests |
-| Branch-Push | ausstehend | erst nach lokaler Freigabe |
-| PR/CI | ausstehend | externe CI für Build/Smoke erforderlich, kein lokales Docker |
+| Branch-Push | PASS |22benannte freigegebene Dateien einschließlich Ticket;Feature81c9abe6684ff4ac4e4404cd33e393ac6dfb7fac auf origin/codex/market-overview bestätigt;Produktmanifest unverändert |
+| PR/CI | PASS |PR2 erstellt und an Chat angehängt;CI39596814249 success;synthetischer Merge d3ab3bad0166e4a825c780c0ae7ea8faffdacf5f mit exakt Base-/Feature-Eltern und Checkout-Beleg im Joblog;Validate119211049443 success inkl.Tests/Dockerbuild/Containerstartup/healthz/Icon;Publish119211216438 skipped |
 | Merge | NICHT_BEAUFTRAGT | kein Nutzer-Mergemandat |
 | main-CI/Image | NICHT_BEAUFTRAGT | kein Nutzer-Mergemandat |
 
 Netzgrenzen:30s je Anfrage,120s Registry gesamt,10min CI-Warten je Lauf. Notwendige offene Phase verhindert Gesamt-DONE.
+
+### Release-Ergebnis und Bedienung
+
+Release bestätigte Remote-main unverändert und Produktmanifest vor Commit/Push erneut exakt. Nur22explizit benannte Dateien gestagt; staged Inhalt gegen freigegebene Dateien geprüft. Zwei Markdown-Endleerzeichen im Hauptagent-Ticket wurden durch Hauptagent vor Commit entfernt (reine Auditformatierung). Featurecommit81c9abe6684ff4ac4e4404cd33e393ac6dfb7fac unverändert gepusht;Arbeitsbaum danach sauber. PR2:https://github.com/Shyn-Shyn/skyblock-bazaar/pull/2 . Erfolgreicher CI-Lauf:https://github.com/Shyn-Shyn/skyblock-bazaar/actions/runs/39596814249 . Der externe CI-Lauf liefert den zuvor fehlenden Container-Nachweis; kein lokaler Docker-Test behauptet. Release nutzte vorhandenen Git-Credential-Manager und Git/strukturierte Node-REST-Aufrufe ohne Ausgabe/Speicherung von Secrets;Netzanfragen30s,CI-Wartebudget10min eingehalten.
+
+Alle verbindlichen Kriterien lokal freigegeben und beauftragter Feature-PR mit passender CI nachgewiesen. Dieser abschließende reine Ticket-Audit wird separat verpackt;Produktmanifest bleibt identisch. Release prüft abschließend aktuellen PR-HEAD/Base und dessen CI erneut. Deren finaler Audit-Commit/CI-Link stehen in der Abschlussmeldung des Chats; hier wird kein noch nicht ausgeführter Prüferfolg behauptet.
+
+Bedienung: Marktübersicht zeigt feste1M-Referenz statt persönlicher Budget-/Strategiefilter, eigene Bazaar-Sell-Order-/NPC-Auswahl;Investitionsplan behält Budget/Filter/Ziele. Manueller Refresh entfällt,Quellstand/Alter/Countdown sichtbar. Bazaar60s zentral,Itemnamen/NPC stündlich geprüft;Hypixel-Caches können identische/ältere Quellstände liefern. Namen aus Ressourcen haben Vorrang,fehlende SHARD_-Namen erhalten lesbare Konvention.50Tests und11Syntaxprüfungen sowie Desktop/390px-Browserflüsse/Namenssuche/CSV/Fehlererholung nachgewiesen. Gewinne/Mengen bleiben Modellwerte.
+
+Gesamtumfang abgeschlossen am prüfbaren PR;Merge/Deployment/main-Image nicht beauftragt und nicht durchgeführt. Kein Mergemandat aus QA/PO-Abnahme abgeleitet. Branch bleibt für Review erhalten;keine Behauptung aktivierten Branchschutzes.
