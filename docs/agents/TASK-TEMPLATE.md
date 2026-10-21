@@ -33,3 +33,40 @@ Regression. Developer-Antwort je BUG und Ergebnis der erneuten QA festhalten.
 
 ACCEPTED / CHANGES_REQUESTED, Begründung. DONE erst nach QA-PASS + ACCEPTED.
 Ergebnis, Prüfungen, Grenzen, Bedienung; bei BLOCKED nächste nötige Aktion.
+Lokale Abnahme: LOCAL_ACCEPTED / ausstehend; freigegebener Basiscommit + Diff
+und vollständige Dateiliste inklusive neuer Dateien oder freigegebene SHA.
+Gesamt-DONE zusätzlich erst nach allen beauftragten Release-Nachweisen.
+
+## Release-Übergabe
+
+Rollenmodus: native bazaar_release / Standard-Agent mit vollständigen
+developer_instructions aus .codex/agents/bazaar_release.toml (Fallback benennen).
+Modus: read-only Vorprüfung / mutierender Release nach QA-PASS + PO-ACCEPTED.
+
+- Repo-Pfad, Ticket und vollständiger PO-Vertrag:
+- Freigegebener Inhaltsstand (Basiscommit + Diff/Dateiliste inklusive neuer
+  Dateien oder SHA), tatsächlich zu pushende Commits:
+- Developer-Nachweis, unabhängige QA-Evidenz und PO-Abnahme für diesen Stand:
+- Nutzerautorisierung mit Wortlaut/Bezug und Umfang; schon erteilt / fehlend:
+- Erlaubte Aktionen/Schreibrechte, Remote-URL und Zielbranch:
+- Bekannte Werkzeuge/Zugänge (ohne Secrets), konkretes Live-Ziel/Stack und
+  gewünschtes Image oder fehlende Angaben:
+- Relevante Dateien: publish-image.yml, Dockerfile, README.md,
+  GITHUB-PORTAINER.md, PORTAINER.md, portainer-ghcr.yaml:
+- Rückgabe: getrennte Status und tatsächliche Evidenz gemäß Bericht unten;
+  Hauptagent alleiniger Ticket-Editor:
+
+## Release-Bericht und Gesamtabschluss
+
+| Phase | Status: PASS / BLOCKED / NICHT_BEAUFTRAGT | Tatsächlicher Nachweis |
+|---|---|---|
+| Lokale Freigabe | | QA/PO, Inhaltsstand, node scripts/check.mjs |
+| GitHub-Push | | geprüfte Dateiliste, Commit, Remote/Branch, Remote-SHA |
+| CI/Image | | CI-URL/Endstatus für SHA, Publish, Image-sha-Tag/Digest und Architekturen soweit belegt |
+| Live-Deployment | | beauftragter Zielhost/Stack, tatsächlich laufendes Image, Container-/HTTP-Prüfung |
+
+Befehle und tatsächliche Ergebnisse, offene Prüflücken, konkrete nächste Aktion.
+Notwendige ungeprüfte Phase = BLOCKED. Image-Publish beweist kein Portainer-Update;
+/healthz beweist App-Erreichbarkeit, keine frischen Marktdaten. Keine Secrets.
+Gesamtstatus DONE / BLOCKED; lokale Abnahme und offene Release-Schritte getrennt
+ausweisen. Inhaltsänderungen zurück an Developer/QA/PO, keine Release-Eigenkorrektur.

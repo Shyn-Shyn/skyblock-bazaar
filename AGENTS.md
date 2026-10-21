@@ -18,6 +18,8 @@ Node.js >=22, ESM, keine npm-Abhängigkeiten, kein Frontend-Framework oder Build
 
 Der Hauptagent koordiniert. Delegiere an drei getrennte Subagenten:
 `bazaar_product_owner` -> `bazaar_developer` -> `bazaar_qa`.
+Für beauftragte Veröffentlichung/Deployment folgt nach QA und PO-Abnahme
+`bazaar_release`; eine read-only Release-Vorprüfung darf früher erfolgen.
 Diese Repository-Anweisung fordert die Delegation ausdrücklich an, auch wenn
 der Nutzer nur eine Anforderung nennt. Keine separaten Sidebar-Chats nötig.
 Für reine Erklärungen und triviale Dokumentkorrekturen genügt der Hauptagent.
@@ -33,6 +35,11 @@ Für reine Erklärungen und triviale Dokumentkorrekturen genügt der Hauptagent.
    mit verbleibenden Fehlern und konkretem nächsten Schritt. Kein falsches PASS.
 5. `DONE` erfordert QA-PASS für alle verbindlichen Kriterien und PO-Abnahme.
    Nicht ausgeführte notwendige Prüfungen ergeben `BLOCKED`, niemals PASS.
+6. Bei vorhandenem Push-/Deploymentauftrag übergib den abgenommenen Stand,
+   Nachweise, Autorisierungsumfang und Ziel an `bazaar_release` gemäß Workflow.
+   Lokale Abnahme und Release getrennt dokumentieren; notwendige offene
+   Release-Schritte verhindern Gesamt-DONE. Änderungen am abgenommenen Inhalt
+   gehen zurück an Developer, unabhängige QA und PO.
 
 Rollen stehen in `.codex/agents/*.toml`. Wenn der Client die Namen noch nicht
 anbietet, lade deren `developer_instructions` in getrennte Standard-Subagenten
@@ -73,6 +80,11 @@ Vor Änderungen Git-Status prüfen und fremde Änderungen erhalten. Hauptagent
 verwaltet das Ticket unter `docs/agents/tasks/<ID>.md`; Rollen liefern Ergebnisse
 zurück. Kein paralleles Editieren desselben Checkouts. Keine Secrets in Tickets.
 Reversible lokale Umsetzung und Fehlerkorrektur im angefragten Scope fortsetzen.
-Push, Merge und Deployment nur auf Nutzerauftrag; insbesondere löst `main`
-eine Image-Veröffentlichung aus. Keine In-Game-Orderausführung hinzufügen,
+Push, Merge und Deployment nur im Umfang des Nutzerauftrags; bereits erteilte
+Autorisierung gilt weiter und erfordert keine erneute fachliche Bestätigung.
+Insbesondere löst `main` eine Image-Veröffentlichung aus, aber kein automatisches
+Portainer-Update. Release prüft Remote-Commit, CI und Image für dieselbe SHA;
+Live-Erfolg braucht ein tatsächliches Ziel, Zugriff und Nachweis der laufenden
+Version. Kein Force-Push oder ungeprüfte/fremde Änderungen veröffentlichen.
+Keine In-Game-Orderausführung hinzufügen,
 wenn nur Analyse/Empfehlungen beauftragt wurden.
