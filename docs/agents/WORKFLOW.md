@@ -9,13 +9,15 @@ deterministischen Scheduler. Der Hauptagent führt die Übergaben aktiv aus.
 | Zustand | Verantwortlich | Nächster Schritt |
 |---|---|---|
 | INTAKE | Hauptagent -> PO | Anforderung und relevante Repo-Dateien übergeben |
-| READY | PO | Vertrag mit AC-IDs, Annahmen und Testplan liegt vor |
+| READY | PO/Hauptagent | Vertrag liegt vor; Basiscommit und codex/<thema>-Branch dokumentiert |
 | IMPLEMENTING | Developer | Umsetzung und eigener Prüfnachweis |
 | QA | separater QA-Agent | Vertrag + aktueller Diff + Developer-Bericht |
 | CHANGES_REQUESTED | QA -> Hauptagent -> derselbe Developer | vollständige BUG-Liste; anschließend erneut QA |
 | ACCEPTANCE | PO | Nach QA-PASS fachliche Abnahme |
 | LOCAL_ACCEPTED | Hauptagent | QA-PASS + PO-ACCEPTED für dokumentierten Inhaltsstand |
-| RELEASE | bazaar_release | Beauftragten GitHub-Push und CI/Image-Prüfung nach lokaler Abnahme ausführen |
+| PR | bazaar_release | Freigegebenen Featurebranch pushen, PR nach main erstellen/aktualisieren, PR-CI prüfen |
+| MERGE | bazaar_release | Nur mit konkretem Nutzer-Mergemandat und aktuellen Freigaben/PR-Prüfungen |
+| IMAGE | bazaar_release | Tatsächlichen main-SHA und dessen erneute CI/Publish/Image prüfen |
 | DONE | Hauptagent | Lokale Abnahme + alle beauftragten Release-Schritte belegt, keine notwendige Prüflücke |
 | BLOCKED | Hauptagent | offene Entscheidung/Umgebung oder drei erfolglose QA-Runden |
 
@@ -35,17 +37,37 @@ Die Release-Rolle arbeitet nach den anderen Phasen; vier Rollen erfordern
 keine vier gleichzeitig geöffneten Subagent-Threads. Falls erforderlich,
 abgeschlossene Rollen beenden, bevor Release gestartet wird.
 
+## Featurebranch vor der Umsetzung
+
+Der Hauptagent prüft `git status`, Branch, Remote und den aktuellen Remote-main.
+Er dokumentiert den Basiscommit und erstellt einen kurzlebigen `codex/<thema>`-
+Branch vom aktuellen `main`. Bei fremden Änderungen oder abweichender Historie
+erst klären und erhalten, nicht resetten oder ungeprüft übernehmen. Ein bereits
+passender Featurebranch darf fortgesetzt werden. Developer ändert nur dort
+Dateien; kein dauerhafter `develop` und kein routinemäßiger Feature-Push nach main.
+
+Eine neue Featureanforderung umfasst im etablierten Ablauf Branch-Push und
+PR-Erstellung für genau diesen Scope nach QA/PO-Abnahme. Dafür keine erneute
+Nachfrage, sofern der Nutzer den Auftrag nicht etwa auf lokale Arbeit begrenzt.
+Ein Merge braucht zusätzlich einen konkreten Nutzerauftrag. Weder PO-Abnahme
+noch eine GitHub-Review erteilen diese Autorisierung.
+
+QA/PO prüfen dokumentierten Basiscommit, Feature-HEAD oder freigegebenen Inhalt
+mit Diff und vollständiger Dateiliste. Neue Featurecommits oder relevante
+Änderungen an der PR-Basis verlangen erneute Prüfung vor Merge. Ticket-Audit-
+Ergänzungen dürfen keine ungeprüften Vertrags-/Produktänderungen verstecken.
+
 ## Release-Übergabe und Prüfung
 
 `bazaar_release` erhält nach QA-PASS und PO-ACCEPTED den Auftrag aus dem
 Release-Abschnitt des Task-Templates. Erforderlicher Kontext:
 
 - Repo-Pfad, Ticket und vollständiger PO-Vertrag.
-- Freigegebener Basiscommit plus Diff, vollständige Dateiliste inklusive neuer
-  Dateien und zu pushende Commits; bei bereits committem Stand dessen SHA.
+- Basiscommit, Featurebranch/HEAD, aktueller Remote-main-SHA und freigegebener
+  Diff mit vollständiger Dateiliste inklusive neuer Dateien und Push-Commits.
 - Developer-Bericht, unabhängige QA-Evidenz und PO-Abnahme für denselben Inhalt.
-- Nutzerautorisierung mit Umfang: Commit/Push, Zielremote/-branch und Image-Publish.
-  Bereits erteilte Autorisierung gilt weiter.
+- Nutzerauftrag mit PR-Scope und gegebenenfalls gesondertem Mergemandat.
+  Bereits erteilte Autorisierung gilt innerhalb ihres Umfangs weiter.
 - Bekannte GitHub-/Registry-Werkzeuge und Zugänge sowie Image-Name, soweit
   vorhanden. Keine Secrets übergeben oder im Ticket speichern.
 - Schreibrechte und gewünschter Bericht gemäß Template; Ticket bleibt beim
@@ -63,20 +85,51 @@ nur verpacken. Inhaltsänderungen erfordern Developer-Korrektur, erneute
 betroffene QA und PO-Abnahme. Erfolgreicher `node scripts/check.mjs`-Nachweis
 muss genau zum finalen freigegebenen Inhaltsstand gehören.
 
-Den Veröffentlichungskontext aus `.github/workflows/publish-image.yml` und `Dockerfile`
-erneut lesen. Die aktuelle Pipeline startet bei Push auf `main`, testet die
-Anwendung, baut ein Testimage, prüft Containerstart/Healthcheck und Icon und
-veröffentlicht amd64/arm64-Images als `latest` und `sha-<vollständiger SHA>`.
-Remote-Commit, erfolgreicher CI-Lauf inklusive Publish und Image müssen
-derselben SHA zugeordnet werden. Ein fremder grüner Lauf oder `latest` allein
-reichen nicht. CI kann den Container-Nachweis liefern, wenn Docker lokal fehlt.
+Den Veröffentlichungskontext aus `.github/workflows/publish-image.yml` und
+`Dockerfile` erneut lesen. Release pusht die freigegebenen Commits auf den
+Featurebranch, erstellt/aktualisiert einen PR nach `main` und hängt dessen URL
+mit `attach_artifact` an den Chat. Der PR-Bericht nennt Feature-HEAD, Base-SHA,
+PR-URL, CI-Lauf und dessen synthetischen Merge-SHA. Ein alter grüner Lauf reicht
+nicht. Vor Mergebereitschaft aktuellen Feature-/Base-Stand erneut vergleichen.
 
-Release umfasst ausschließlich GitHub-Veröffentlichung und die Prüfung des
-veröffentlichten Images. Lokale Freigabe, GitHub-Push und CI/Image erhalten
-getrennte Status und Belege. Fehlende notwendige GitHub-/Registry-Zugriffe oder
-Prüfungen ergeben für die betroffene Phase `BLOCKED` mit nächster Aktion;
-nicht beauftragte Phasen werden `NICHT_BEAUFTRAGT`. Lokale Abnahme kann dabei
-vorliegen; der Gesamtabschluss muss offene beauftragte Release-Aufgaben nennen.
+Die Pipeline validiert PRs nach `main` mit `node scripts/check.mjs`, Dockerbuild
+und Container-Smoke über `/healthz` und `/app-icon.png`. Der `validate`-Job hat
+nur `contents: read`, keine Registry-Anmeldung und keine expliziten Secrets.
+Der Standard-Checkout prüft den synthetischen PR-Merge-Stand, nicht zwingend
+den Feature-HEAD. `publish` muss in PR-Läufen übersprungen sein.
+
+Ohne konkreten Nutzer-Mergeauftrag endet die Arbeit am geprüften PR; Merge und
+Image sind `NICHT_BEAUFTRAGT`. Ein vorhandener Mergeauftrag wird nach aktuellen
+QA-/PO-Freigaben und erfolgreicher aktueller PR-CI ohne Schutzumgehung ausgeführt.
+Neue Featurecommits oder relevante Base-Änderungen benötigen erneute Prüfung.
+Merge gegen den geprüften Feature-HEAD ausführen und tatsächlichen main-SHA
+anschließend am Remote bestätigen. Featurebranch erst nach bestätigtem Merge
+löschen, sofern er nicht weiterverwendet wird.
+
+Nach Push auf `main` validiert die Pipeline den tatsächlichen main-SHA erneut.
+Der davon abhängige `publish`-Job hat als einziger `packages: write` und
+veröffentlicht amd64/arm64-Images als `latest` und `sha-<vollständiger SHA>`.
+Manueller `workflow_dispatch` veröffentlicht ebenfalls nur auf `refs/heads/main`;
+auf Featurebranches wird nur validiert. Remote-main-SHA, erfolgreicher main-CI-
+Lauf einschließlich Publish und Image müssen zusammenpassen. `latest` allein
+reicht nicht. PR-CI-SHA und tatsächlicher main-SHA sind getrennte Nachweise.
+
+Lokale Abnahme, Branch-Push, PR/CI, Merge und main-CI/Image erhalten getrennte
+Status. Fehlende notwendige Zugriffe oder Prüfungen ergeben `BLOCKED` mit
+nächster Aktion; nicht beauftragte Phasen sind `NICHT_BEAUFTRAGT`. Fehlendes
+lokales Docker ist eine Prüflücke, bis passende externe PR-CI den Container-
+Nachweis liefert. Vorher keinen vollständigen Container-/CI-Erfolg behaupten.
+Die lokale Konfigabnahme erlaubt den PR-Push für diese externe Prüfung.
+Release bleibt ausschließlich für GitHub-Veröffentlichung und Image-Prüfung zuständig.
+
+## Empfohlener Branchschutz
+
+In den GitHub-Einstellungen für `main` Pull Requests und den erfolgreichen Check
+`Validate application and container` verlangen, möglichst mit aktueller Base.
+Der übersprungene Publish-Job ist kein geeigneter erforderlicher Check.
+Diese Repositorydateien aktivieren keine Branchschutz-Regeln. Ohne tatsächlichen
+Nachweis niemals behaupten, die Empfehlung sei bereits technisch erzwungen.
+PO-Abnahme im Ticket ersetzt keine konfigurierte GitHub-Review.
 
 Jede Netzwerkanfrage ist explizit auf höchstens 30 Sekunden zu begrenzen.
 Registry-Abfragen haben insgesamt höchstens 120 Sekunden, CI-Warten inklusive
