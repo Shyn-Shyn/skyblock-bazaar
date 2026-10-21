@@ -23,10 +23,25 @@ const products = {
   SHARD_SKELETON: product(100.1, 119.9, 1000, 2000),
   SHARD_CARROT_KING: product(100.1, 119.9, 1000, 2000),
   OFFICIAL_SHARD: product(100.1, 119.9, 1000, 2000),
+  QUALITY_FAST: product(10000, 11000 / .9875, 20000, 20000),
+  QUALITY_SLOW_BUY: product(12000, 13200 / .9875, 2000, 20000),
+  QUALITY_SLOW_SELL: product(12000, 13200 / .9875, 20000, 2000),
+  QUALITY_TINY: product(10, 11 / .9875, 840, 840),
+  QUALITY_FIRST: product(100000, 103000 / .9875, 825, 825),
+  QUALITY_REST: product(1000, 1020 / .9875, 84000, 84000),
+  QUALITY_PARTIAL: {
+    sell_summary: [{ pricePerUnit: 100, amount: 2500, orders: 3 }],
+    buy_summary: [{ pricePerUnit: 120, amount: 2500, orders: 3 }],
+    quick_status: { sellVolume: 2500, buyVolume: 2500, sellMovingWeek: 422500,
+      buyMovingWeek: 422500, sellOrders: 3, buyOrders: 3 },
+  },
 };
 const names = { TEST_ITEM: 'Test Kapazität', COMPACT: 'Kompakte Position', BUDGET: 'Budget Position', MASS: 'Massen Position', LIMIT_A: 'NPC Limit A', LIMIT_B: 'NPC Limit B', OFFICIAL_SHARD: '§aOfficial Skeleton Shards' };
 const npcPrices = { TEST_ITEM: 120, COMPACT: 120, BUDGET: 12, MASS: 1.3, LIMIT_A: 12, LIMIT_B: 12,
   SHARD_SKELETON: 120, SHARD_CARROT_KING: 120, OFFICIAL_SHARD: 120 };
+Object.assign(names, { QUALITY_FAST: 'Zügiger Umlauf', QUALITY_SLOW_BUY: 'Langsamer Einkauf',
+  QUALITY_SLOW_SELL: 'Langsamer Verkauf', QUALITY_TINY: 'Bagatelle',
+  QUALITY_FIRST: 'Große Hauptposition', QUALITY_REST: 'Zu kleiner Rest', QUALITY_PARTIAL: 'Teilmenge mit Warteschlange' });
 const many = Array.from({ length: 60 }, (_, index) => {
   const id = `PAGINATION_${String(index + 1).padStart(2, '0')}`;
   products[id] = product(100.1, 119.9, 1000, 2000);
@@ -36,7 +51,12 @@ const many = Array.from({ length: 60 }, (_, index) => {
 });
 const modes = { all: ['TEST_ITEM', 'COMPACT', 'BUDGET', 'MASS', 'LIMIT_A', 'LIMIT_B'], capacity: ['TEST_ITEM'],
   goals: ['COMPACT', 'BUDGET'], npc: ['COMPACT', 'MASS'], npclimit: ['LIMIT_A', 'LIMIT_B'],
-  names: ['SHARD_SKELETON', 'SHARD_CARROT_KING', 'OFFICIAL_SHARD'], many };
+  names: ['SHARD_SKELETON', 'SHARD_CARROT_KING', 'OFFICIAL_SHARD'], many,
+  quality: ['QUALITY_FAST', 'QUALITY_SLOW_BUY', 'QUALITY_SLOW_SELL', 'QUALITY_TINY'],
+  qualitybuy: ['QUALITY_FAST', 'QUALITY_SLOW_BUY', 'QUALITY_TINY'],
+  qualitysell: ['QUALITY_FAST', 'QUALITY_SLOW_SELL', 'QUALITY_TINY'],
+  qualitytiny: ['QUALITY_TINY'], qualityrest: ['QUALITY_FIRST', 'QUALITY_REST'],
+  qualitypartial: ['QUALITY_PARTIAL'] };
 const json = (req, res, value, status = 200) => {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(req.method === 'HEAD' ? undefined : JSON.stringify(value));

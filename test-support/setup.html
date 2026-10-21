@@ -11,6 +11,14 @@
 <button id="old-scanner">Alte extreme Scannerfilter vorbereiten</button>
 <p>Legacy: Budget1.234.567, Steuer1,8%, NPC, Horizont3h, Mindest-ROI7%; neue Profile entfernen. Erwarteter Plan:24h/ROI2/12Positionen mit übernommenem Budget/Ziel/Steuer. Die Merkliste bleibt erhalten.</p>
 <p>Mehrpositionslimit: NPC-Plan, Budget1000, Limit30, maximal20% je Item; zwei10-Coin-Items. Erwartet30Stück über zwei Positionen, Einsatz300/Gewinn60. Scanner bleibt auf eigenen Defaults.</p></section>
+<section><h2>Gewinnschwelle und Tempo im Bazaar-Plan</h2>
+<button data-quality="10m">Qualität ·10M Bestandsprofil</button><button data-quality="40m">Qualität ·40M Bestandsprofil</button>
+<button data-quality="buy">Tempo ·langsame Buy-Seite</button><button data-quality="sell">Tempo ·langsame Sell-Seite</button>
+<button data-quality="tiny">Nur Bagatellen ·10M</button><button data-quality="rest">Restbudget unter Gewinnschwelle</button>
+<button data-quality="partial">Teilmenge25 ·Wartezeit2h ·Dauer4h</button>
+<p>Jeder Button speichert ein bisheriges Version-2-Planprofil mit den bestehenden Zielwerten budget/profit; keine neue Einstellung. Merkliste und Legacy-Quelle bleiben erhalten. Danach zur Anwendung wechseln und den Investitionsplan öffnen.</p>
+<p>10M/40M und Tempo: nur Zügiger Umlauf mit100Stück, Einsatz1M, Gewinn100.000, Dauer1h; Schwelle5.000/20.000. Die langsamen Alternativen haben jeweils120.000Gewinn und5,5h. Beide Ziele wählen den zügigen Umlauf. Nur Bagatellen ergibt einen leeren Plan.</p>
+<p>Restbudget:99Stück Große Hauptposition, Einsatz9,9M, Gewinn297.000, Dauer24h;100.000Coins frei. Restkandidat würde nur2.000Coins beitragen und entfällt. Teilmenge:25Stück, Einsatz2.500, Gewinn462,5, Dauer4h. Kapazitätsalternative100Stück/10.000Coins/10h. Details und CSV vergleichen; nach Reload bleiben Profile erhalten.</p></section>
 <section><h2>Fixture-Datensatz</h2>
 <button data-mode="all">Alle Fixtures</button><button data-mode="capacity">Kapazität</button><button data-mode="goals">Bazaar-Zielvergleich</button><button data-mode="npc">NPC-Kompaktvergleich</button><button data-mode="npclimit">NPC-Mehrpositionslimit</button><button data-mode="names">Shard-Namen</button><button data-mode="many">Pagination ·60Items</button>
 <h2>Alter der NPC-Itemdaten</h2><button data-age="0">Frische Itemdaten ·0h</button><button data-age="48">Veraltete Itemdaten ·48h</button>
